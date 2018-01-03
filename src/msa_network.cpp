@@ -108,7 +108,7 @@ std::string MSANetwork::generateKey(int keyLength, std::string const& sessionKey
     size_t i = 1;
     while (ret.length() < keyLength) {
         ((int&) buf[0]) = htonl(i++);
-        HMAC(EVP_sha256(), sessionKey.data(), sessionKey.length(), buf, off, resultBuf, &resultSize);
+        HMAC(EVP_sha256(), sessionKey.data(), sessionKey.length(), buf, off, resultBuf, (unsigned int*)&resultSize);
         ret.append((char*) resultBuf, std::min<size_t>(resultSize, keyLength - ret.size()));
     }
     delete[] buf;
@@ -161,7 +161,7 @@ std::string MSANetwork::createSignature(std::string const& data, std::string con
     std::string signatureKey = generateKey(32, binarySecret, keyUsage, nonce);
     unsigned char signatureBuf[EVP_MAX_MD_SIZE];
     size_t signatureSize = 0;
-    HMAC(EVP_sha256(), signatureKey.data(), signatureKey.length(), (unsigned char*) data.data(), data.size(), signatureBuf, &signatureSize);
+    HMAC(EVP_sha256(), signatureKey.data(), signatureKey.length(), (unsigned char*) data.data(), data.size(), signatureBuf, (unsigned int*)&signatureSize);
     return Base64::encode(std::string((char*) signatureBuf, signatureSize));
 }
 

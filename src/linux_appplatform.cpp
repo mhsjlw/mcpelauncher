@@ -8,7 +8,7 @@
 #include <png.h>
 #include <uuid/uuid.h>
 #include <sys/types.h>
-#include <sys/sysinfo.h>
+// #include <sys/sysinfo.h>
 #include <sys/statvfs.h>
 #include "minecraft/ImagePickingCallback.h"
 #include "minecraft/FilePickerSettings.h"
@@ -16,10 +16,16 @@
 #include "common.h"
 #include "path_helper.h"
 
-extern "C" {
-#include <eglut.h>
-#include "../hybris/include/hybris/dlfcn.h"
+template <typename T>
+void* magicast(T whatever) {
+    T* ptr = &whatever;
+    void** pptr = (void**) ptr;
+    return *pptr;
 }
+
+// #include <eglut.h>
+
+#include "../hybris/include/hybris/dlfcn.h"
 
 void** LinuxAppPlatform::myVtable = nullptr;
 bool LinuxAppPlatform::mousePointerHidden = false;
@@ -68,52 +74,52 @@ void LinuxAppPlatform::initVtable(void* lib) {
     myVtable = (void**) ::operator new(size * sizeof(void*));
     memcpy(&myVtable[0], &vt[2], (size - 2) * sizeof(void*));
 
-    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android10getDataUrlEv", (void*) &LinuxAppPlatform::getDataUrl);
-    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android14getUserDataUrlEv", (void*) &LinuxAppPlatform::getUserDataUrl);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android14getPackagePathEv", (void*) &LinuxAppPlatform::getPackagePath);
-    replaceVtableEntry(lib, vta, "_ZN11AppPlatform16hideMousePointerEv", (void*) &LinuxAppPlatform::hideMousePointer);
-    replaceVtableEntry(lib, vta, "_ZN11AppPlatform16showMousePointerEv", (void*) &LinuxAppPlatform::showMousePointer);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android11swapBuffersEv", (void*) &LinuxAppPlatform::swapBuffers);
-    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android15getSystemRegionEv", (void*) &LinuxAppPlatform::getSystemRegion);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android25getGraphicsTearingSupportEv", (void*) &LinuxAppPlatform::getGraphicsTearingSupport);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android9pickImageER20ImagePickingCallback", (void*) &LinuxAppPlatform::pickImage);
-    replaceVtableEntry(lib, vta, "_ZN11AppPlatform8pickFileER18FilePickerSettings", (void*) &LinuxAppPlatform::pickFile);
-    replaceVtableEntry(lib, vta, "_ZNK11AppPlatform19supportsFilePickingEv", (void*) &LinuxAppPlatform::supportsFilePicking);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android22getExternalStoragePathEv", (void*) &LinuxAppPlatform::getExternalStoragePath);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android22getInternalStoragePathEv", (void*) &LinuxAppPlatform::getInternalStoragePath);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android21getCurrentStoragePathEv", (void*) &LinuxAppPlatform::getCurrentStoragePath);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android15getUserdataPathEv", (void*) &LinuxAppPlatform::getUserdataPath);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android24getUserdataPathForLevelsEv", (void*) &LinuxAppPlatform::getUserdataPathForLevels);
-    replaceVtableEntry(lib, vta, "_ZN11AppPlatform20getAssetFileFullPathERKSs", (void*) &LinuxAppPlatform::getAssetFileFullPath);
-    replaceVtableEntry(lib, vta, "_ZNK11AppPlatform14useCenteredGUIEv", (void*) &LinuxAppPlatform::useCenteredGUI);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android16getApplicationIdEv", (void*) &LinuxAppPlatform::getApplicationId);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android25_updateUsedMemorySnapshotEv", (void*) &LinuxAppPlatform::_updateUsedMemorySnapshot);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android30_updateAvailableMemorySnapshotEv", (void*) &LinuxAppPlatform::_updateAvailableMemorySnapshot);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android26_updateTotalMemorySnapshotEv", (void*) &LinuxAppPlatform::_updateTotalMemorySnapshot);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android11getDeviceIdEv", (void*) &LinuxAppPlatform::getDeviceId);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android10createUUIDEv", (void*) &LinuxAppPlatform::createUUID);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android18isFirstSnoopLaunchEv", (void*) &LinuxAppPlatform::isFirstSnoopLaunch);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android29hasHardwareInformationChangedEv", (void*) &LinuxAppPlatform::hasHardwareInformationChanged);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android8isTabletEv", (void*) &LinuxAppPlatform::isTablet);
-    replaceVtableEntry(lib, vta, "_ZN11AppPlatform17setFullscreenModeE14FullscreenMode", (void*) &LinuxAppPlatform::setFullscreenMode);
-    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android10getEditionEv", (void*) &LinuxAppPlatform::getEdition);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android31calculateAvailableDiskFreeSpaceERKSs", (void*) &LinuxAppPlatform::calculateAvailableDiskFreeSpace);
-    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android25getPlatformUIScalingRulesEv", (void*) &LinuxAppPlatform::getPlatformUIScalingRules);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android19getPlatformTempPathEv", (void*) &LinuxAppPlatform::getPlatformTempPath);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android14createDeviceIDEv", (void*) &LinuxAppPlatform::createDeviceID_old);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android14createDeviceIDERSs", (void*) &LinuxAppPlatform::createDeviceID);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android18queueForMainThreadESt8functionIFvvEE", (void*) &LinuxAppPlatform::queueForMainThread);
-    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android35getMultiplayerServiceListToRegisterEv", (void*) &LinuxAppPlatform::getMultiplayerServiceListToRegister);
+    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android10getDataUrlEv", magicast(&LinuxAppPlatform::getDataUrl));
+    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android14getUserDataUrlEv", magicast(&LinuxAppPlatform::getUserDataUrl));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android14getPackagePathEv", magicast(&LinuxAppPlatform::getPackagePath));
+    replaceVtableEntry(lib, vta, "_ZN11AppPlatform16hideMousePointerEv", magicast(&LinuxAppPlatform::hideMousePointer));
+    replaceVtableEntry(lib, vta, "_ZN11AppPlatform16showMousePointerEv", magicast(&LinuxAppPlatform::showMousePointer));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android11swapBuffersEv", magicast(&LinuxAppPlatform::swapBuffers));
+    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android15getSystemRegionEv", magicast(&LinuxAppPlatform::getSystemRegion));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android25getGraphicsTearingSupportEv", magicast(&LinuxAppPlatform::getGraphicsTearingSupport));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android9pickImageER20ImagePickingCallback", magicast(&LinuxAppPlatform::pickImage));
+    replaceVtableEntry(lib, vta, "_ZN11AppPlatform8pickFileER18FilePickerSettings", magicast(&LinuxAppPlatform::pickFile));
+    replaceVtableEntry(lib, vta, "_ZNK11AppPlatform19supportsFilePickingEv", magicast(&LinuxAppPlatform::supportsFilePicking));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android22getExternalStoragePathEv", magicast(&LinuxAppPlatform::getExternalStoragePath));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android22getInternalStoragePathEv", magicast(&LinuxAppPlatform::getInternalStoragePath));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android21getCurrentStoragePathEv", magicast(&LinuxAppPlatform::getCurrentStoragePath));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android15getUserdataPathEv", magicast(&LinuxAppPlatform::getUserdataPath));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android24getUserdataPathForLevelsEv", magicast(&LinuxAppPlatform::getUserdataPathForLevels));
+    replaceVtableEntry(lib, vta, "_ZN11AppPlatform20getAssetFileFullPathERKSs", magicast(&LinuxAppPlatform::getAssetFileFullPath));
+    replaceVtableEntry(lib, vta, "_ZNK11AppPlatform14useCenteredGUIEv", magicast(&LinuxAppPlatform::useCenteredGUI));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android16getApplicationIdEv", magicast(&LinuxAppPlatform::getApplicationId));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android25_updateUsedMemorySnapshotEv", magicast(&LinuxAppPlatform::_updateUsedMemorySnapshot));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android30_updateAvailableMemorySnapshotEv", magicast(&LinuxAppPlatform::_updateAvailableMemorySnapshot));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android26_updateTotalMemorySnapshotEv", magicast(&LinuxAppPlatform::_updateTotalMemorySnapshot));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android11getDeviceIdEv", magicast(&LinuxAppPlatform::getDeviceId));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android10createUUIDEv", magicast(&LinuxAppPlatform::createUUID));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android18isFirstSnoopLaunchEv", magicast(&LinuxAppPlatform::isFirstSnoopLaunch));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android29hasHardwareInformationChangedEv", magicast(&LinuxAppPlatform::hasHardwareInformationChanged));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android8isTabletEv", magicast(&LinuxAppPlatform::isTablet));
+    replaceVtableEntry(lib, vta, "_ZN11AppPlatform17setFullscreenModeE14FullscreenMode", magicast(&LinuxAppPlatform::setFullscreenMode));
+    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android10getEditionEv", magicast(&LinuxAppPlatform::getEdition));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android31calculateAvailableDiskFreeSpaceERKSs", magicast(&LinuxAppPlatform::calculateAvailableDiskFreeSpace));
+    replaceVtableEntry(lib, vta, "_ZNK19AppPlatform_android25getPlatformUIScalingRulesEv", magicast(&LinuxAppPlatform::getPlatformUIScalingRules));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android19getPlatformTempPathEv", magicast(&LinuxAppPlatform::getPlatformTempPath));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android14createDeviceIDEv", magicast(&LinuxAppPlatform::createDeviceID_old));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android14createDeviceIDERSs", magicast(&LinuxAppPlatform::createDeviceID));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android18queueForMainThreadESt8functionIFvvEE", magicast(&LinuxAppPlatform::queueForMainThread));
+    replaceVtableEntry(lib, vta, "_ZN19AppPlatform_android35getMultiplayerServiceListToRegisterEv", magicast(&LinuxAppPlatform::getMultiplayerServiceListToRegister));
 }
 
 void LinuxAppPlatform::hideMousePointer() {
     mousePointerHidden = true;
     moveMouseToCenter = true;
-    eglutSetMousePointerVisiblity(EGLUT_POINTER_INVISIBLE);
+    // eglutSetMousePointerVisiblity(EGLUT_POINTER_INVISIBLE);
 }
 void LinuxAppPlatform::showMousePointer() {
     mousePointerHidden = false;
-    eglutSetMousePointerVisiblity(EGLUT_POINTER_VISIBLE);
+    // eglutSetMousePointerVisiblity(EGLUT_POINTER_VISIBLE);
 }
 
 std::string LinuxAppPlatform::_pickFile(std::string commandLine) {
@@ -183,9 +189,9 @@ void LinuxAppPlatform::pickFile(FilePickerSettings &settings) {
 
 void LinuxAppPlatform::setFullscreenMode(int mode) {
     std::cout << "set fullscreen mode: " << mode << "\n";
-    int newMode = mode == 1 ? EGLUT_FULLSCREEN : EGLUT_WINDOWED;
-    if (eglutGet(EGLUT_FULLSCREEN_MODE) != newMode)
-        eglutToggleFullscreen();
+    // int newMode = mode == 1 ? EGLUT_FULLSCREEN : EGLUT_WINDOWED;
+    // if (eglutGet(EGLUT_FULLSCREEN_MODE) != newMode)
+        // eglutToggleFullscreen();
 }
 
 long long LinuxAppPlatform::calculateAvailableDiskFreeSpace() {
@@ -217,19 +223,19 @@ void LinuxAppPlatform::_updateUsedMemorySnapshot() {
 }
 
 void LinuxAppPlatform::_updateAvailableMemorySnapshot() {
-    struct sysinfo memInfo;
-    sysinfo (&memInfo);
-    long long total = memInfo.freeram;
-    total += memInfo.freeswap;
-    total *= memInfo.mem_unit;
-    availableMemory = total;
+    // struct sysinfo memInfo;
+    // sysinfo (&memInfo);
+    // long long total = memInfo.freeram;
+    // total += memInfo.freeswap;
+    // total *= memInfo.mem_unit;
+    // availableMemory = total;
 }
 
 void LinuxAppPlatform::_updateTotalMemorySnapshot() {
-    struct sysinfo memInfo;
-    sysinfo (&memInfo);
-    long long total = memInfo.totalram;
-    total += memInfo.totalswap;
-    total *= memInfo.mem_unit;
-    totalMemory = total;
+    // struct sysinfo memInfo;
+    // sysinfo (&memInfo);
+    // long long total = memInfo.totalram;
+    // total += memInfo.totalswap;
+    // total *= memInfo.mem_unit;
+    // totalMemory = total;
 }

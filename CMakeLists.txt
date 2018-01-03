@@ -8,12 +8,13 @@ enable_language(C ASM)
 set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -m32")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
 set(CMAKE_LIBRARY_ARCHITECTURE "i386-linux-gnu")
 
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(X11 REQUIRED)
+find_package(OpenSSL REQUIRED)
+# find_package(X11 REQUIRED)
 
 set(CEF_ENABLED true)
 set(PLAYAPI_ENABLED true)
@@ -35,14 +36,12 @@ if (PLAYAPI_ENABLED)
     set_target_properties(gplaydl PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
 
-include_directories(${PNG_INCLUDE_DIRS})
-include_directories(eglut)
-include_directories(libs/rapidxml)
+include_directories(${PNG_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} libs/rapidxml/)
 
 set(HYBRIS_SOURCES hybris/src/cache.c hybris/src/dlfcn.c hybris/src/hooks.c hybris/src/hooks_shm.c hybris/src/logging.c hybris/src/properties.c hybris/src/strlcpy.c hybris/src/ctype.c hybris/src/sysconf.c hybris/src/jb/dlfcn.c hybris/src/jb/linker.c hybris/src/jb/linker_environ.c hybris/src/jb/linker_format.c hybris/src/jb/rt.c)
-set(EGLUT_SOURCES eglut/eglut.c eglut/eglut_x11.c)
 
-set(SOURCE_FILES src/main.cpp src/common.cpp src/hook.cpp src/amdfix.s src/linux_appplatform.cpp src/minecraft/types.cpp src/minecraft/ImagePickingCallback.h src/minecraft/FilePickerSettings.h src/minecraft/Common.h src/minecraft/Xbox.h src/minecraft/string.cpp src/minecraft/string.h src/base64.cpp src/base64.h src/msa.cpp src/msa.h src/msa_token.h src/msa_network.cpp src/msa_network.h src/xboxlive.h src/xboxlive.cpp src/cll.cpp src/cll.h src/async_result_util.h src/extract.cpp src/extract.h src/path_helper.cpp src/path_helper.h eglut/eglut_x11.h)
+set(SOURCE_FILES src/main.cpp src/common.cpp src/hook.cpp src/linux_appplatform.cpp src/minecraft/types.cpp src/minecraft/ImagePickingCallback.h src/minecraft/FilePickerSettings.h src/minecraft/Common.h src/minecraft/Xbox.h src/minecraft/string.cpp src/minecraft/string.h src/base64.cpp src/base64.h src/msa.cpp src/msa.h src/msa_token.h src/msa_network.cpp src/msa_network.h src/xboxlive.h src/xboxlive.cpp src/cll.cpp src/cll.h src/async_result_util.h src/extract.cpp src/extract.h src/path_helper.cpp src/path_helper.h)
+
 set(SOURCE_FILES_CEF)
 if (CEF_ENABLED)
     link_directories(${CMAKE_SOURCE_DIR}/libs/cef/lib/)
@@ -51,9 +50,13 @@ endif()
 if (PLAYAPI_ENABLED)
     set(SOURCE_FILES ${SOURCE_FILES} gplay_api/src/config.h gplay_api/src/config.cpp src/google_login_browser.h src/google_login_browser.cpp src/google_play_helper.cpp src/google_play_helper.h)
 endif()
-add_executable(mcpelauncher ${HYBRIS_SOURCES} ${EGLUT_SOURCES} ${SOURCE_FILES})
-target_link_libraries(mcpelauncher ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT} ${X11_X11_LIB} rt EGL GLESv2 uuid z png curl zip crypto)
-target_compile_definitions(mcpelauncher PRIVATE ANDROID_X86_LINKER _GNU_SOURCE LINKER_TEXT_BASE=0xB0000100 LINKER_AREA_SIZE=0x01000000 LINKER_DEBUG=1)
+
+# UUID, LibZip, LibPNG
+file(GLOB LIBRARIES ext/libuuid.dylib ext/libzip.dylib ext/libpng.dylib ext/libglfw.dylib)
+
+add_executable(mcpelauncher ${HYBRIS_SOURCES} ${SOURCE_FILES})
+target_link_libraries(mcpelauncher ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT} z curl ${OPENSSL_LIBRARIES} crypto ${LIBRARIES})
+target_compile_definitions(mcpelauncher PRIVATE ANDROID_X86_LINKER _GNU_SOURCE LINKER_TEXT_BASE=0xB0000100 LINKER_AREA_SIZE=0x01000000 LINKER_DEBUG=3)
 
 if (CEF_ENABLED)
     include_directories(libs/cef)

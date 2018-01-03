@@ -13,6 +13,8 @@
 #include "path_helper.h"
 #include "minecraft/MultiplayerService.h"
 
+// extern "C"
+
 class ImageData;
 class ImagePickingCallback;
 class FilePickerSettings;

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 
-#include <linux/auxvec.h>
+// #include <linux/auxvec.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1560,7 +1560,7 @@ static int reloc_library(soinfo *si, Elf32_Rel *rel, unsigned count)
  *   DT_FINI_ARRAY must be parsed in reverse order.
  */
 
-static void call_array(unsigned *ctor, int count, int reverse)
+static void call_array(unsigned *ctor, int count, int reverse, soinfo* si)
 {
     int n, inc = 1;
 
@@ -1576,7 +1576,8 @@ static void call_array(unsigned *ctor, int count, int reverse)
         void (*func)() = (void (*)()) *ctor;
         ctor += inc;
         if(((int) func == 0) || ((int) func == -1)) continue;
-        TRACE("[ %5d Calling func @ 0x%08x ]\n", pid, (unsigned)func);
+        TRACE("[ %5d Calling func @ %x YO THE BASE IS HERE : %x ]\n", pid, func, si->base);
+        TRACE("[ %5d Calling func @ %x YO THE BASE IS HERE : %x ]\n", pid, (unsigned)func, (unsigned)si->base);
         func();
     }
 }
@@ -1607,7 +1608,7 @@ void call_constructors_recursive(soinfo *si)
         TRACE("[ %5d Calling preinit_array @ 0x%08x [%d] for '%s' ]\n",
               pid, (unsigned)si->preinit_array, si->preinit_array_count,
               si->name);
-        call_array(si->preinit_array, si->preinit_array_count, 0);
+        call_array(si->preinit_array, si->preinit_array_count, 0, si);
         TRACE("[ %5d Done calling preinit_array for '%s' ]\n", pid, si->name);
     } else {
         if (si->preinit_array) {
@@ -1642,7 +1643,7 @@ void call_constructors_recursive(soinfo *si)
     if (si->init_array) {
         TRACE("[ %5d Calling init_array @ 0x%08x [%d] for '%s' ]\n", pid,
               (unsigned)si->init_array, si->init_array_count, si->name);
-        call_array(si->init_array, si->init_array_count, 0);
+        call_array(si->init_array, si->init_array_count, 0, si);
         TRACE("[ %5d Done calling init_array for '%s' ]\n", pid, si->name);
     }
 
@@ -1653,7 +1654,7 @@ static void call_destructors(soinfo *si)
     if (si->fini_array) {
         TRACE("[ %5d Calling fini_array @ 0x%08x [%d] for '%s' ]\n", pid,
               (unsigned)si->fini_array, si->fini_array_count, si->name);
-        call_array(si->fini_array, si->fini_array_count, 1);
+        call_array(si->fini_array, si->fini_array_count, 1, si);
         TRACE("[ %5d Done calling fini_array for '%s' ]\n", pid, si->name);
     }
 
@@ -1748,7 +1749,7 @@ static int link_image(soinfo *si, unsigned wr_offset)
 
     if (si->flags & (FLAG_EXE | FLAG_LINKER)) {
         /* Locate the needed program segments (DYNAMIC/ARM_EXIDX) for
-         * linkage info if this is the executable or the linker itself. 
+         * linkage info if this is the executable or the linker itself.
          * If this was a dynamic lib, that would have been done at load time.
          *
          * TODO: It's unfortunate that small pieces of this are

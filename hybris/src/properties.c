@@ -42,6 +42,15 @@
 static const char property_service_socket[] = "/dev/socket/" PROP_SERVICE_NAME;
 static int send_prop_msg_no_reply = 0;
 
+#ifndef TEMP_FAILURE_RETRY
+#define TEMP_FAILURE_RETRY(expression) \
+  (__extension__                                                              \
+    ({ long int __result;                                                     \
+       do __result = (long int) (expression);                                 \
+       while (__result == -1L && errno == EINTR);                             \
+       __result; }))
+#endif
+
 /* Get/Set a property from the Android Init property socket */
 static int send_prop_msg(prop_msg_t *msg,
 		void (*propfn)(const char *, const char *, void *),

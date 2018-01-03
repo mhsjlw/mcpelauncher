@@ -17,6 +17,7 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 #include "linker.h"
 #include "linker_format.h"
 
@@ -28,6 +29,9 @@
 #define DL_ERR_BAD_SYMBOL_NAME        3
 #define DL_ERR_SYMBOL_NOT_FOUND       4
 #define DL_ERR_SYMBOL_NOT_GLOBAL      5
+
+#define ANDROID_LIBDL_STRTAB \
+                      "dlopen\0dlclose\0dlsym\0dlerror\0dladdr\0dl_iterate_phdr\0"
 
 static char dl_err_buf[1024];
 static const char *dl_err_str;
@@ -43,7 +47,7 @@ static const char *dl_errors[] = {
 #define likely(expr)   __builtin_expect (expr, 1)
 #define unlikely(expr) __builtin_expect (expr, 0)
 
-static pthread_mutex_t dl_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static pthread_mutex_t dl_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
 
 static void set_dlerror(int err)
 {
@@ -56,15 +60,26 @@ void *android_dlopen(const char *filename, int flag)
 {
     soinfo *ret;
 
+    printf("before the lock\n");
     pthread_mutex_lock(&dl_lock);
+    printf("after the lock\n");
+
     ret = find_library(filename);
+
+    printf("after find library\n");
+
     if (unlikely(ret == NULL)) {
+        printf("DLL ERROR !!\n");
         set_dlerror(DL_ERR_CANNOT_LOAD_LIBRARY);
     } else {
+        printf("call constructors recursive\n");
         call_constructors_recursive(ret);
         ret->refcount++;
     }
+
+    printf("before the unlock\n");
     pthread_mutex_unlock(&dl_lock);
+    printf("after the unlock\n");
     return ret;
 }
 
@@ -83,7 +98,7 @@ void *android_dlsym(void *handle, const char *symbol)
 
     pthread_mutex_lock(&dl_lock);
 
-    if(unlikely(handle == 0)) { 
+    if(unlikely(handle == 0)) {
         set_dlerror(DL_ERR_INVALID_LIBRARY_HANDLE);
         goto err;
     }
@@ -186,6 +201,7 @@ _Unwind_Ptr android_dl_unwind_find_exidx(_Unwind_Ptr pc, int *pcount);
 #define ANDROID_LIBDL_STRTAB \
                       "dlopen\0dlclose\0dlsym\0dlerror\0dladdr\0dl_iterate_phdr\0"
 
+// FIXME? WHAT DID I DO
 #else /* !defined(ANDROID_ARM_LINKER) && !defined(ANDROID_X86_LINKER) */
 #error Unsupported architecture. Only ARM and x86 are presently supported.
 #endif
@@ -282,4 +298,3 @@ soinfo libdl_info = {
     bucket: libdl_buckets,
     chain: libdl_chains,
 };
-    

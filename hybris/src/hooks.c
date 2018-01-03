@@ -21,13 +21,17 @@
 
 #include "hooks_shm.h"
 
+#include <xlocale.h>
+#include <limits.h>
+// #include <sys/time.h>
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdarg.h>
-#include <stdio_ext.h>
+// #include <stdio_ext.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <malloc.h>
+// #include <malloc.h>
 #include <string.h>
 #include <strings.h>
 #include <dlfcn.h>
@@ -49,8 +53,8 @@
 #include <unistd.h>
 #include <syslog.h>
 #include <locale.h>
-#include <sys/syscall.h>
-#include <sys/auxv.h>
+// #include <sys/syscall.h>
+// #include <sys/auxv.h>
 
 #include <arpa/inet.h>
 #include <assert.h>
@@ -62,7 +66,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
-#include <sys/epoll.h>
+// #include <sys/epoll.h>
 #include <net/if.h>
 #include <utime.h>
 #include <wctype.h>
@@ -111,10 +115,11 @@ struct _hook {
     void *func;
 };
 
+uint test;
 uintptr_t _hybris_stack_chk_guard = 0;
 
 static void __attribute__((constructor)) __init_stack_check_guard() {
-    _hybris_stack_chk_guard = *((uintptr_t*) getauxval(AT_RANDOM));
+    _hybris_stack_chk_guard = &test;//*((uintptr_t*) getauxval(AT_RANDOM)); FIXME
 }
 
 /* Helpers */
@@ -220,11 +225,11 @@ size_t my_strlen_chk(const char *s, size_t s_len) {
     return ret;
 }
 
-extern size_t strlcpy(char *dst, const char *src, size_t siz);
+// extern size_t strlcpy(char *dst, const char *src, size_t siz); FIXME
 
 static pid_t my_gettid( void )
 {
-        return syscall( __NR_gettid );
+        // return syscall( __NR_gettid ); FIXME syscall
 }
 
 /*
@@ -379,15 +384,15 @@ static int my_pthread_attr_getscope(pthread_attr_t const *__attr)
     return scope;
 }
 
-static int my_pthread_getattr_np(pthread_t thid, pthread_attr_t *__attr)
-{
-    pthread_attr_t *realattr;
-
-    realattr = malloc(sizeof(pthread_attr_t));
-    *((unsigned int *)__attr) = (unsigned int) realattr;
-
-    return pthread_getattr_np(thid, realattr);
-}
+// static int my_pthread_getattr_np(pthread_t thid, pthread_attr_t *__attr)
+// {
+//     pthread_attr_t *realattr;
+//
+//     realattr = malloc(sizeof(pthread_attr_t));
+//     *((unsigned int *)__attr) = (unsigned int) realattr;
+//
+//     return pthread_getattr_np(thid, realattr);
+// }
 
 /*
  * pthread_mutex* functions
@@ -523,34 +528,34 @@ static int my_pthread_mutex_unlock(pthread_mutex_t *__mutex)
     return pthread_mutex_unlock(realmutex);
 }
 
-static int my_pthread_mutex_lock_timeout_np(pthread_mutex_t *__mutex, unsigned __msecs)
-{
-    struct timespec tv;
-    pthread_mutex_t *realmutex;
-    unsigned int value = (*(unsigned int *) __mutex);
-
-    if (hybris_check_android_shared_mutex(value)) {
-        LOGD("Shared mutex with Android, not lock timeout np.");
-        return 0;
-    }
-
-    realmutex = (pthread_mutex_t *) value;
-
-    if (value <= ANDROID_TOP_ADDR_VALUE_MUTEX) {
-        realmutex = hybris_alloc_init_mutex(value);
-        *((int *)__mutex) = (int) realmutex;
-    }
-
-    clock_gettime(CLOCK_REALTIME, &tv);
-    tv.tv_sec += __msecs/1000;
-    tv.tv_nsec += (__msecs % 1000) * 1000000;
-    if (tv.tv_nsec >= 1000000000) {
-      tv.tv_sec++;
-      tv.tv_nsec -= 1000000000;
-    }
-
-    return pthread_mutex_timedlock(realmutex, &tv);
-}
+// static int my_pthread_mutex_lock_timeout_np(pthread_mutex_t *__mutex, unsigned __msecs)
+// {
+//     struct timespec tv;
+//     pthread_mutex_t *realmutex;
+//     unsigned int value = (*(unsigned int *) __mutex);
+//
+//     if (hybris_check_android_shared_mutex(value)) {
+//         LOGD("Shared mutex with Android, not lock timeout np.");
+//         return 0;
+//     }
+//
+//     realmutex = (pthread_mutex_t *) value;
+//
+//     if (value <= ANDROID_TOP_ADDR_VALUE_MUTEX) {
+//         realmutex = hybris_alloc_init_mutex(value);
+//         *((int *)__mutex) = (int) realmutex;
+//     }
+//
+//     clock_gettime(CLOCK_REALTIME, &tv);
+//     tv.tv_sec += __msecs/1000;
+//     tv.tv_nsec += (__msecs % 1000) * 1000000;
+//     if (tv.tv_nsec >= 1000000000) {
+//       tv.tv_sec++;
+//       tv.tv_nsec -= 1000000000;
+//     }
+//
+//     return pthread_mutex_timedlock(realmutex, &tv);
+// }
 
 static int my_pthread_mutexattr_setpshared(pthread_mutexattr_t *__attr,
                                            int pshared)
@@ -726,47 +731,47 @@ static int my_pthread_cond_timedwait(pthread_cond_t *cond,
     return pthread_cond_timedwait(realcond, realmutex, abstime);
 }
 
-static int my_pthread_cond_timedwait_relative_np(pthread_cond_t *cond,
-                pthread_mutex_t *mutex, const struct timespec *reltime)
-{
-    /* Both cond and mutex can be statically initialized, check for both */
-    unsigned int cvalue = (*(unsigned int *) cond);
-    unsigned int mvalue = (*(unsigned int *) mutex);
-
-    if (hybris_check_android_shared_cond(cvalue) ||
-         hybris_check_android_shared_mutex(mvalue)) {
-        LOGD("Shared condition/mutex with Android, not waiting.");
-        return 0;
-    }
-
-    pthread_cond_t *realcond = (pthread_cond_t *) cvalue;
-    if( hybris_is_pointer_in_shm((void*)cvalue) )
-        realcond = (pthread_cond_t *)hybris_get_shmpointer((hybris_shm_pointer_t)cvalue);
-
-    if (cvalue <= ANDROID_TOP_ADDR_VALUE_COND) {
-        realcond = hybris_alloc_init_cond();
-        *((unsigned int *) cond) = (unsigned int) realcond;
-    }
-
-    pthread_mutex_t *realmutex = (pthread_mutex_t *) mvalue;
-    if (hybris_is_pointer_in_shm((void*)mvalue))
-        realmutex = (pthread_mutex_t *)hybris_get_shmpointer((hybris_shm_pointer_t)mvalue);
-
-    if (mvalue <= ANDROID_TOP_ADDR_VALUE_MUTEX) {
-        realmutex = hybris_alloc_init_mutex(mvalue);
-        *((unsigned int *) mutex) = (unsigned int) realmutex;
-    }
-
-    struct timespec tv;
-    clock_gettime(CLOCK_REALTIME, &tv);
-    tv.tv_sec += reltime->tv_sec;
-    tv.tv_nsec += reltime->tv_nsec;
-    if (tv.tv_nsec >= 1000000000) {
-      tv.tv_sec++;
-      tv.tv_nsec -= 1000000000;
-    }
-    return pthread_cond_timedwait(realcond, realmutex, &tv);
-}
+// static int my_pthread_cond_timedwait_relative_np(pthread_cond_t *cond,
+//                 pthread_mutex_t *mutex, const struct timespec *reltime)
+// {
+//     /* Both cond and mutex can be statically initialized, check for both */
+//     unsigned int cvalue = (*(unsigned int *) cond);
+//     unsigned int mvalue = (*(unsigned int *) mutex);
+//
+//     if (hybris_check_android_shared_cond(cvalue) ||
+//          hybris_check_android_shared_mutex(mvalue)) {
+//         LOGD("Shared condition/mutex with Android, not waiting.");
+//         return 0;
+//     }
+//
+//     pthread_cond_t *realcond = (pthread_cond_t *) cvalue;
+//     if( hybris_is_pointer_in_shm((void*)cvalue) )
+//         realcond = (pthread_cond_t *)hybris_get_shmpointer((hybris_shm_pointer_t)cvalue);
+//
+//     if (cvalue <= ANDROID_TOP_ADDR_VALUE_COND) {
+//         realcond = hybris_alloc_init_cond();
+//         *((unsigned int *) cond) = (unsigned int) realcond;
+//     }
+//
+//     pthread_mutex_t *realmutex = (pthread_mutex_t *) mvalue;
+//     if (hybris_is_pointer_in_shm((void*)mvalue))
+//         realmutex = (pthread_mutex_t *)hybris_get_shmpointer((hybris_shm_pointer_t)mvalue);
+//
+//     if (mvalue <= ANDROID_TOP_ADDR_VALUE_MUTEX) {
+//         realmutex = hybris_alloc_init_mutex(mvalue);
+//         *((unsigned int *) mutex) = (unsigned int) realmutex;
+//     }
+//
+//     struct timespec tv;
+//     clock_gettime(CLOCK_REALTIME, &tv);
+//     tv.tv_sec += reltime->tv_sec;
+//     tv.tv_nsec += reltime->tv_nsec;
+//     if (tv.tv_nsec >= 1000000000) {
+//       tv.tv_sec++;
+//       tv.tv_nsec -= 1000000000;
+//     }
+//     return pthread_cond_timedwait(realcond, realmutex, &tv);
+// }
 
 /*
  * pthread_rwlockattr_* functions
@@ -894,12 +899,12 @@ static int my_pthread_rwlock_tryrdlock(pthread_rwlock_t *__rwlock)
     return pthread_rwlock_tryrdlock(realrwlock);
 }
 
-static int my_pthread_rwlock_timedrdlock(pthread_rwlock_t *__rwlock,
-                                         __const struct timespec *abs_timeout)
-{
-    pthread_rwlock_t *realrwlock = hybris_set_realrwlock(__rwlock);
-    return pthread_rwlock_timedrdlock(realrwlock, abs_timeout);
-}
+// static int my_pthread_rwlock_timedrdlock(pthread_rwlock_t *__rwlock,
+//                                          __const struct timespec *abs_timeout)
+// {
+//     pthread_rwlock_t *realrwlock = hybris_set_realrwlock(__rwlock);
+//     return pthread_rwlock_timedrdlock(realrwlock, abs_timeout);
+// }
 
 static int my_pthread_rwlock_wrlock(pthread_rwlock_t *__rwlock)
 {
@@ -913,12 +918,12 @@ static int my_pthread_rwlock_trywrlock(pthread_rwlock_t *__rwlock)
     return pthread_rwlock_trywrlock(realrwlock);
 }
 
-static int my_pthread_rwlock_timedwrlock(pthread_rwlock_t *__rwlock,
-                                         __const struct timespec *abs_timeout)
-{
-    pthread_rwlock_t *realrwlock = hybris_set_realrwlock(__rwlock);
-    return pthread_rwlock_timedwrlock(realrwlock, abs_timeout);
-}
+// static int my_pthread_rwlock_timedwrlock(pthread_rwlock_t *__rwlock,
+//                                          __const struct timespec *abs_timeout)
+// {
+//     pthread_rwlock_t *realrwlock = hybris_set_realrwlock(__rwlock);
+//     return pthread_rwlock_timedwrlock(realrwlock, abs_timeout);
+// }
 
 static int my_pthread_rwlock_unlock(pthread_rwlock_t *__rwlock)
 {
@@ -1239,7 +1244,7 @@ static char* my_fgetln(FILE *fp, size_t *len)
 */
 static int my_fpurge(struct aFILE* fp)
 {
-    __fpurge(_get_actual_fp(fp));
+    fpurge(_get_actual_fp(fp));
 
     return 0;
 }
@@ -1312,7 +1317,7 @@ static struct bionic_dirent *my_readdir(DIR *dirp)
     }
 
     result.d_ino = real_result->d_ino;
-    result.d_off = real_result->d_off;
+    // result.d_off = real_result->d_off;
     result.d_reclen = real_result->d_reclen;
     result.d_type = real_result->d_type;
     memcpy(result.d_name, real_result->d_name, sizeof(result.d_name));
@@ -1337,7 +1342,7 @@ static int my_readdir_r(DIR *dir, struct bionic_dirent *entry,
             *result = entry;
 
             entry->d_ino = entry_r.d_ino;
-            entry->d_off = entry_r.d_off;
+            // entry->d_off = entry_r.d_off;
             entry->d_reclen = entry_r.d_reclen;
             entry->d_type = entry_r.d_type;
             memcpy(entry->d_name, entry_r.d_name, sizeof(entry->d_name));
@@ -1360,73 +1365,73 @@ static int my_alphasort(struct bionic_dirent **a,
     return strcoll((*a)->d_name, (*b)->d_name);
 }
 
-static int my_versionsort(struct bionic_dirent **a,
-                          struct bionic_dirent **b)
-{
-    return strverscmp((*a)->d_name, (*b)->d_name);
-}
+// static int my_versionsort(struct bionic_dirent **a,
+//                           struct bionic_dirent **b)
+// {
+//     return strverscmp((*a)->d_name, (*b)->d_name);
+// }
 
-static int my_scandirat(int fd, const char *dir,
-                      struct bionic_dirent ***namelist,
-                      int (*filter) (const struct bionic_dirent *),
-                      int (*compar) (const struct bionic_dirent **,
-                                     const struct bionic_dirent **))
-{
-    struct dirent **namelist_r;
-    struct bionic_dirent **result;
-    struct bionic_dirent *filter_r;
+// static int my_scandirat(int fd, const char *dir,
+//                       struct bionic_dirent ***namelist,
+//                       int (*filter) (const struct bionic_dirent *),
+//                       int (*compar) (const struct bionic_dirent **,
+//                                      const struct bionic_dirent **))
+// {
+//     struct dirent **namelist_r;
+//     struct bionic_dirent **result;
+//     struct bionic_dirent *filter_r;
+//
+//     int i = 0;
+//     size_t nItems = 0;
+//
+//     int res = scandirat(fd, dir, &namelist_r, NULL, NULL);
+//
+//     if (res != 0 && namelist_r != NULL) {
+//
+//         result = malloc(res * sizeof(struct bionic_dirent));
+//         if (!result)
+//             return -1;
+//
+//         for (i = 0; i < res; i++) {
+//             filter_r = malloc(sizeof(struct bionic_dirent));
+//             if (!filter_r) {
+//                 while (i-- > 0)
+//                         free(result[i]);
+//                     free(result);
+//                     return -1;
+//             }
+//             filter_r->d_ino = namelist_r[i]->d_ino;
+//             // filter_r->d_off = namelist_r[i]->d_off;
+//             filter_r->d_reclen = namelist_r[i]->d_reclen;
+//             filter_r->d_type = namelist_r[i]->d_type;
+//
+//             strcpy(filter_r->d_name, namelist_r[i]->d_name);
+//             filter_r->d_name[sizeof(namelist_r[i]->d_name) - 1] = '\0';
+//
+//             if (filter != NULL && !(*filter)(filter_r)) {//apply filter
+//                 free(filter_r);
+//                 continue;
+//             }
+//
+//             result[nItems++] = filter_r;
+//         }
+//         if (nItems && compar != NULL) // sort
+//             qsort(result, nItems, sizeof(struct bionic_dirent *), compar);
+//
+//         *namelist = result;
+//     }
+//
+//     return res;
+// }
 
-    int i = 0;
-    size_t nItems = 0;
-
-    int res = scandirat(fd, dir, &namelist_r, NULL, NULL);
-
-    if (res != 0 && namelist_r != NULL) {
-
-        result = malloc(res * sizeof(struct bionic_dirent));
-        if (!result)
-            return -1;
-
-        for (i = 0; i < res; i++) {
-            filter_r = malloc(sizeof(struct bionic_dirent));
-            if (!filter_r) {
-                while (i-- > 0)
-                        free(result[i]);
-                    free(result);
-                    return -1;
-            }
-            filter_r->d_ino = namelist_r[i]->d_ino;
-            filter_r->d_off = namelist_r[i]->d_off;
-            filter_r->d_reclen = namelist_r[i]->d_reclen;
-            filter_r->d_type = namelist_r[i]->d_type;
-
-            strcpy(filter_r->d_name, namelist_r[i]->d_name);
-            filter_r->d_name[sizeof(namelist_r[i]->d_name) - 1] = '\0';
-
-            if (filter != NULL && !(*filter)(filter_r)) {//apply filter
-                free(filter_r);
-                continue;
-            }
-
-            result[nItems++] = filter_r;
-        }
-        if (nItems && compar != NULL) // sort
-            qsort(result, nItems, sizeof(struct bionic_dirent *), compar);
-
-        *namelist = result;
-    }
-
-    return res;
-}
-
-static int my_scandir(const char *dir,
-                      struct bionic_dirent ***namelist,
-                      int (*filter) (const struct bionic_dirent *),
-                      int (*compar) (const struct bionic_dirent **,
-                                     const struct bionic_dirent **))
-{
-    return my_scandirat(AT_FDCWD, dir, namelist, filter, compar);
-}
+// static int my_scandir(const char *dir,
+//                       struct bionic_dirent ***namelist,
+//                       int (*filter) (const struct bionic_dirent *),
+//                       int (*compar) (const struct bionic_dirent **,
+//                                      const struct bionic_dirent **))
+// {
+//     return my_scandirat(AT_FDCWD, dir, namelist, filter, compar);
+// }
 
 extern long my_sysconf(int name);
 
@@ -1502,25 +1507,25 @@ struct bionic_stat64 {
 };
 
 void stat_to_bionic_stat(struct stat *s, struct bionic_stat64 *b) {
-    b->st_dev = s->st_dev;
-    b->__st_ino = s->st_ino;
-    b->st_mode = s->st_mode;
-    b->st_nlink = s->st_nlink;
-    b->st_uid = s->st_uid;
-    b->st_gid = s->st_gid;
-    b->st_rdev = s->st_rdev;
-    b->st_size = s->st_size;
-    b->st_blksize = (unsigned long) s->st_blksize;
-    b->st_blocks = (unsigned long long) s->st_blocks;
-    b->st_atim = s->st_atim;
-    b->st_mtim = s->st_mtim;
-    b->st_ctim = s->st_ctim;
-    b->st_ino = s->st_ino;
+    // b->st_dev = s->st_dev;
+    // b->__st_ino = s->st_ino;
+    // b->st_mode = s->st_mode;
+    // b->st_nlink = s->st_nlink;
+    // b->st_uid = s->st_uid;
+    // b->st_gid = s->st_gid;
+    // b->st_rdev = s->st_rdev;
+    // b->st_size = s->st_size;
+    // b->st_blksize = (unsigned long) s->st_blksize;
+    // b->st_blocks = (unsigned long long) s->st_blocks;
+    // b->st_atim = s->st_atim;
+    // b->st_mtim = s->st_mtim;
+    // b->st_ctim = s->st_ctim;
+    // b->st_ino = s->st_ino;
 }
-
-void stat64_to_bionic_stat(struct stat64 *s, struct bionic_stat64 *b) {
+// void stat64_to_bionic_stat(struct stat64 *s, struct bionic_stat64 *b)
+void stat64_to_bionic_stat(struct stat *s, struct bionic_stat64 *b) {
     b->st_dev = s->st_dev;
-    b->__st_ino = s->__st_ino;
+    b->st_ino = s->st_ino;
     b->st_mode = s->st_mode;
     b->st_nlink = s->st_nlink;
     b->st_uid = s->st_uid;
@@ -1529,9 +1534,9 @@ void stat64_to_bionic_stat(struct stat64 *s, struct bionic_stat64 *b) {
     b->st_size = s->st_size;
     b->st_blksize = (unsigned long) s->st_blksize;
     b->st_blocks = (unsigned long long) s->st_blocks;
-    b->st_atim = s->st_atim;
-    b->st_mtim = s->st_mtim;
-    b->st_ctim = s->st_ctim;
+    // b->st_atim = s->st_atim;
+    // b->st_mtim = s->st_mtim;
+    // b->st_ctim = s->st_ctim;
     b->st_ino = s->st_ino;
 }
 
@@ -1651,6 +1656,10 @@ void my_freeaddrinfo(struct android_addrinfo *ai) {
     }
 }
 
+int my_fdatasync(int fildes) {
+  return fcntl(fildes, F_FULLFSYNC);
+}
+
 #define	A_NI_NOFQDN	0x00000001
 #define	A_NI_NUMERICHOST	0x00000002
 #define	A_NI_NAMEREQD	0x00000004
@@ -1695,6 +1704,20 @@ void *my_android_dlsym(void *handle, const char *symbol)
     return android_dlsym(handle, symbol);
 }
 
+
+// int *__errno_location(void) {}
+
+int *__syscall(void) {}
+
+int epoll_create(int size){};
+int epoll_create1(){};
+int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event){};
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout){};
+
+int FAKE_pthread_once(pthread_once_t *once_control, void (*init_routine)(void)) {
+  abort();
+}
+
 static struct _hook hooks[] = {
     {"property_get", property_get },
     {"property_set", property_set },
@@ -1703,11 +1726,11 @@ static struct _hook hooks[] = {
     {"__stack_chk_guard", &_hybris_stack_chk_guard},
     {"printf", printf },
     {"malloc", my_malloc },
-    {"memalign", memalign },
-    {"pvalloc", pvalloc },
+    // {"memalign", memalign },
+    // {"pvalloc", pvalloc },
     {"getxattr", getxattr},
-    {"__assert", __assert },
-    {"__assert2", __assert },
+    // {"__assert", __assert },
+    // {"__assert2", __assert },
     {"uname", uname },
     {"sched_yield", sched_yield},
     {"ldexp", ldexp},
@@ -1722,7 +1745,7 @@ static struct _hook hooks[] = {
     {"__udivdi3", __udivdi3},
     {"__divdi3", __divdi3},
     /* stdlib.h */
-    {"__ctype_get_mb_cur_max", __ctype_get_mb_cur_max},
+    // {"__ctype_get_mb_cur_max", __ctype_get_mb_cur_max},
     {"atof", atof},
     {"atoi", atoi},
     {"atol", atol},
@@ -1736,23 +1759,23 @@ static struct _hook hooks[] = {
     {"strtouq", strtouq},
     {"strtoll", strtoll},
     {"strtoull", strtoull},
-    {"strtol_l", strtol_l},
+    // {"strtol_l", strtol_l},
     {"strtoul_l", strtoul_l},
-    {"strtoll_l", strtoll_l},
-    {"strtoull_l", strtoull_l},
-    {"strtod_l", strtod_l},
+    // {"strtoll_l", strtoll_l},
+    // {"strtoull_l", strtoull_l},
+    // {"strtod_l", strtod_l},
     {"strtof_l", strtof_l},
     {"strtold_l", strtold_l},
-    {"l64a", l64a},
-    {"a64l", a64l},
+    // {"l64a", l64a},
+    // {"a64l", a64l},
     {"random", random},
     {"srandom", srandom},
     {"initstate", initstate},
     {"setstate", setstate},
-    {"random_r", random_r},
-    {"srandom_r", srandom_r},
-    {"initstate_r", initstate_r},
-    {"setstate_r", setstate_r},
+    // {"random_r", random_r},
+    // {"srandom_r", srandom_r},
+    // {"initstate_r", initstate_r},
+    // {"setstate_r", setstate_r},
     {"rand", rand},
     {"srand", srand},
     {"rand_r", rand_r},
@@ -1765,45 +1788,45 @@ static struct _hook hooks[] = {
     {"srand48", srand48},
     {"seed48", seed48},
     {"lcong48", lcong48},
-    {"drand48_r", drand48_r},
-    {"erand48_r", erand48_r},
-    {"lrand48_r", lrand48_r},
-    {"nrand48_r", nrand48_r},
-    {"mrand48_r", mrand48_r},
-    {"jrand48_r", jrand48_r},
-    {"srand48_r", srand48_r},
-    {"seed48_r", seed48_r},
-    {"lcong48_r", lcong48_r},
+    // {"drand48_r", drand48_r},
+    // {"erand48_r", erand48_r},
+    // {"lrand48_r", lrand48_r},
+    // {"nrand48_r", nrand48_r},
+    // {"mrand48_r", mrand48_r},
+    // {"jrand48_r", jrand48_r},
+    // {"srand48_r", srand48_r},
+    // {"seed48_r", seed48_r},
+    // {"lcong48_r", lcong48_r},
     {"malloc", malloc},
     {"calloc", calloc},
     {"realloc", realloc},
     {"free", free},
     {"valloc", valloc},
     {"posix_memalign", posix_memalign},
-    {"aligned_alloc", aligned_alloc},
+    // {"aligned_alloc", aligned_alloc},
     {"abort", abort},
     {"atexit", atexit},
-    {"on_exit", on_exit},
+    // {"on_exit", on_exit},
     {"exit", exit},
-    {"quick_exit", quick_exit},
+    // {"quick_exit", quick_exit},
     {"_Exit", _Exit},
     {"getenv", getenv},
-    {"secure_getenv", secure_getenv},
+    // {"secure_getenv", secure_getenv},
     {"putenv", putenv},
     {"setenv", setenv},
     {"unsetenv", unsetenv},
-    {"clearenv", clearenv},
+    // {"clearenv", clearenv},
     {"mkstemp", mkstemp},
-    {"mkstemp64", mkstemp64},
-    {"mkstemps", mkstemps},
-    {"mkstemps64", mkstemps64},
+    // {"mkstemp64", mkstemp64},
+    // {"mkstemps", mkstemps},
+    // {"mkstemps64", mkstemps64},
     {"mkdtemp", mkdtemp},
     {"mkostemp", mkostemp},
-    {"mkostemp64", mkostemp64},
-    {"mkostemps", mkostemps},
-    {"mkostemps64", mkostemps64},
+    // {"mkostemp64", mkostemp64},
+    // {"mkostemps", mkostemps},
+    // {"mkostemps64", mkostemps64},
     {"system", system},
-    {"canonicalize_file_name", canonicalize_file_name},
+    // {"canonicalize_file_name", canonicalize_file_name},
     {"realpath", realpath},
     {"bsearch", bsearch},
     {"qsort", qsort},
@@ -1817,31 +1840,31 @@ static struct _hook hooks[] = {
     {"ecvt", ecvt},
     {"fcvt", fcvt},
     {"gcvt", gcvt},
-    {"qecvt", qecvt},
-    {"qfcvt", qfcvt},
-    {"qgcvt", qgcvt},
-    {"ecvt_r", ecvt_r},
-    {"fcvt_r", fcvt_r},
-    {"qecvt_r", qecvt_r},
-    {"qfcvt_r", qfcvt_r},
+    // {"qecvt", qecvt},
+    // {"qfcvt", qfcvt},
+    // {"qgcvt", qgcvt},
+    // {"ecvt_r", ecvt_r},
+    // {"fcvt_r", fcvt_r},
+    // {"qecvt_r", qecvt_r},
+    // {"qfcvt_r", qfcvt_r},
     {"mblen", mblen},
     {"mbtowc", mbtowc},
     {"wctomb", wctomb},
     {"mbstowcs", mbstowcs},
     {"wcstombs", wcstombs},
-    {"rpmatch", rpmatch},
+    // {"rpmatch", rpmatch},
     {"getsubopt", getsubopt},
     {"posix_openpt", posix_openpt},
     {"grantpt", grantpt},
     {"unlockpt", unlockpt},
     {"ptsname", ptsname},
-    {"ptsname_r", ptsname_r},
-    {"getpt", getpt},
+    // {"ptsname_r", ptsname_r},
+    // {"getpt", getpt},
     {"getloadavg", getloadavg},
     /* string.h */
     {"memccpy",memccpy},
     {"memchr",memchr},
-    {"memrchr",memrchr},
+    // {"memrchr",memrchr},
     {"memcmp",memcmp},
     {"memcpy",my_memcpy},
     {"memmove",memmove},
@@ -1896,7 +1919,7 @@ static struct _hook hooks[] = {
     {"opendir", opendir},
     {"closedir", closedir},
     /* pthread.h */
-    {"getauxval", getauxval},
+    // {"getauxval", getauxval},
     {"gettid", my_gettid},
     {"getpid", getpid},
     {"pthread_atfork", pthread_atfork},
@@ -1914,7 +1937,7 @@ static struct _hook hooks[] = {
     {"pthread_mutex_lock", my_pthread_mutex_lock},
     {"pthread_mutex_unlock", my_pthread_mutex_unlock},
     {"pthread_mutex_trylock", my_pthread_mutex_trylock},
-    {"pthread_mutex_lock_timeout_np", my_pthread_mutex_lock_timeout_np},
+    // {"pthread_mutex_lock_timeout_np", my_pthread_mutex_lock_timeout_np},
     {"pthread_mutexattr_init", pthread_mutexattr_init},
     {"pthread_mutexattr_destroy", pthread_mutexattr_destroy},
     {"pthread_mutexattr_gettype", pthread_mutexattr_gettype},
@@ -1932,10 +1955,10 @@ static struct _hook hooks[] = {
     {"pthread_cond_wait", my_pthread_cond_wait},
     {"pthread_cond_timedwait", my_pthread_cond_timedwait},
     {"pthread_cond_timedwait_monotonic", my_pthread_cond_timedwait},
-    {"pthread_cond_timedwait_monotonic_np", my_pthread_cond_timedwait},
-    {"pthread_cond_timedwait_relative_np", my_pthread_cond_timedwait_relative_np},
-    {"pthread_key_delete", pthread_key_delete},
-    {"pthread_setname_np", pthread_setname_np},
+    // {"pthread_cond_timedwait_monotonic_np", my_pthread_cond_timedwait},
+    // {"pthread_cond_timedwait_relative_np", my_pthread_cond_timedwait_relative_np},
+    // {"pthread_key_delete", pthread_key_delete},
+    // {"pthread_setname_np", pthread_setname_np},
     {"pthread_once", pthread_once},
     {"pthread_key_create", pthread_key_create},
     {"pthread_setspecific", pthread_setspecific},
@@ -1958,7 +1981,7 @@ static struct _hook hooks[] = {
     {"pthread_attr_getguardsize", my_pthread_attr_getguardsize},
     {"pthread_attr_setscope", my_pthread_attr_setscope},
     {"pthread_attr_setscope", my_pthread_attr_getscope},
-    {"pthread_getattr_np", my_pthread_getattr_np},
+    // {"pthread_getattr_np", my_pthread_getattr_np},
     {"pthread_rwlockattr_init", my_pthread_rwlockattr_init},
     {"pthread_rwlockattr_destroy", my_pthread_rwlockattr_destroy},
     {"pthread_rwlockattr_setpshared", my_pthread_rwlockattr_setpshared},
@@ -1970,8 +1993,8 @@ static struct _hook hooks[] = {
     {"pthread_rwlock_rdlock", my_pthread_rwlock_rdlock},
     {"pthread_rwlock_tryrdlock", my_pthread_rwlock_tryrdlock},
     {"pthread_rwlock_trywrlock", my_pthread_rwlock_trywrlock},
-    {"pthread_rwlock_timedrdlock", my_pthread_rwlock_timedrdlock},
-    {"pthread_rwlock_timedwrlock", my_pthread_rwlock_timedwrlock},
+    // {"pthread_rwlock_timedrdlock", my_pthread_rwlock_timedrdlock},
+    // {"pthread_rwlock_timedwrlock", my_pthread_rwlock_timedwrlock},
     {"__pthread_cleanup_push", my_pthread_cleanup_push},
     {"__pthread_cleanup_pop", my_pthread_cleanup_pop},
     /* stdio.h */
@@ -2034,7 +2057,7 @@ static struct _hook hooks[] = {
     {"setlinebuf", my_setlinebuf},
     {"remove", remove},
     {"rename", rename},
-    {"__errno", __errno_location},
+    {"__errno", __error},
     {"__set_errno", my_set_errno},
     /* socket.h */
     {"socket", socket},
@@ -2048,14 +2071,14 @@ static struct _hook hooks[] = {
     {"sendto", sendto},
     {"recvfrom", recvfrom},
     {"sendmsg", sendmsg},
-    {"sendmmsg", sendmmsg},
+    // {"sendmmsg", sendmmsg},
     {"recvmsg", recvmsg},
-    {"recvmmsg", recvmmsg},
+    // {"recvmmsg", recvmmsg},
     {"getsockopt", getsockopt},
     {"setsockopt", setsockopt},
     {"listen", listen},
     {"accept", accept},
-    {"accept4", accept4},
+    // {"accept4", accept4},
     {"shutdown", shutdown},
     /* net specifics, to avoid __res_get_state */
     {"getaddrinfo", my_getaddrinfo},
@@ -2083,10 +2106,10 @@ static struct _hook hooks[] = {
     {"seekdir", seekdir},
     {"telldir", telldir},
     {"dirfd", dirfd},
-    {"scandir", my_scandir},
-    {"scandirat", my_scandirat},
+    // {"scandir", my_scandir},
+    // {"scandirat", my_scandirat},
     {"alphasort", my_alphasort},
-    {"versionsort", my_versionsort},
+    // {"versionsort", my_versionsort},
     /* fcntl.h */
     {"open", my_open},
     {"__get_tls_hooks", __get_tls_hooks},
@@ -2098,11 +2121,11 @@ static struct _hook hooks[] = {
     {"syslog", syslog},
     {"closelog", closelog},
     {"vsyslog", vsyslog},
-    {"timer_create", timer_create},
-    {"timer_settime", timer_settime},
-    {"timer_gettime", timer_gettime},
-    {"timer_delete", timer_delete},
-    {"timer_getoverrun", timer_getoverrun},
+    // {"timer_create", timer_create},
+    // {"timer_settime", timer_settime},
+    // {"timer_gettime", timer_gettime},
+    // {"timer_delete", timer_delete},
+    // {"timer_getoverrun", timer_getoverrun},
     {"localtime", localtime},
     {"localtime_r", localtime_r},
     {"gmtime", gmtime},
@@ -2112,16 +2135,16 @@ static struct _hook hooks[] = {
     /* unistd.h */
     {"access", access},
     {"lseek", lseek},
-    {"lseek64", lseek64},
+    // {"lseek64", lseek64},
     {"close", close},
     {"read", read},
     {"write", write},
     {"pread", pread},
     {"pwrite", pwrite},
-    {"pread64", pread64},
-    {"pwrite64", pwrite64},
+    // {"pread64", pread64},
+    // {"pwrite64", pwrite64},
     {"pipe", pipe},
-    {"pipe2", pipe2},
+    // {"pipe2", pipe2},
     {"alarm", alarm},
     {"sleep", sleep},
     {"usleep", usleep},
@@ -2132,17 +2155,17 @@ static struct _hook hooks[] = {
     {"chdir", chdir},
     {"fchdir", fchdir},
     {"getcwd", getcwd},
-    {"get_current_dir_name", get_current_dir_name},
+    // {"get_current_dir_name", get_current_dir_name},
     {"dup", dup},
     {"dup2", dup2},
-    {"dup3", dup3},
-    {"execve", execve},
+    // {"dup3", dup3},
+    // {"execve", execve},
     {"execv", execv},
     {"execle", execle},
     {"execl", execl},
     {"execvp", execvp},
     {"execlp", execlp},
-    {"execvpe", execvpe},
+    // {"execvpe", execvpe},
     {"nice", nice},
     {"_exit", _exit},
     {"pathconf", pathconf},
@@ -2152,8 +2175,8 @@ static struct _hook hooks[] = {
     {"getpid", getpid},
     {"getppid", getppid},
     {"getpgrp", getpgrp},
-    {"__getpgid", __getpgid},
-    {"getpgid", getpgid},
+    // {"__getpgid", __getpgid},
+    // {"getpgid", getpgid},
     {"setpgid", setpgid},
     {"setpgrp", setpgrp},
     {"setsid", setsid},
@@ -2163,17 +2186,17 @@ static struct _hook hooks[] = {
     {"getgid", getgid},
     {"getegid", getegid},
     {"getgroups", getgroups},
-    {"group_member", group_member},
+    // {"group_member", group_member},
     {"setuid", setuid},
     {"setreuid", setreuid},
     {"seteuid", seteuid},
     {"setgid", setgid},
     {"setregid", setregid},
     {"setegid", setegid},
-    {"getresuid", getresuid},
-    {"getresgid", getresgid},
-    {"setresuid", setresuid},
-    {"setresgid", setresgid},
+    // {"getresuid", getresuid},
+    // {"getresgid", getresgid},
+    // {"setresuid", setresuid},
+    // {"setresgid", setresgid},
     {"fork", fork},
     {"vfork", vfork},
     {"ttyname", ttyname},
@@ -2194,8 +2217,8 @@ static struct _hook hooks[] = {
     {"sethostid", sethostid},
     {"getdomainname", getdomainname},
     {"setdomainname", setdomainname},
-    {"vhangup", vhangup},
-    {"profil", profil},
+    // {"vhangup", vhangup},
+    // {"profil", profil},
     {"acct", acct},
     {"getusershell", getusershell},
     {"endusershell", endusershell},
@@ -2204,21 +2227,21 @@ static struct _hook hooks[] = {
     {"chroot", chroot},
     {"getpass", getpass},
     {"fsync", fsync},
-    {"syncfs", syncfs},
+    // {"syncfs", syncfs},
     {"gethostid", gethostid},
     {"sync", sync},
     {"getpagesize", getpagesize},
     {"getdtablesize", getdtablesize},
     {"truncate", truncate},
-    {"truncate64", truncate64},
+    // {"truncate64", truncate64},
     {"ftruncate", ftruncate},
-    {"ftruncate64", ftruncate64},
+    // {"ftruncate64", ftruncate64},
     {"brk", brk},
     {"sbrk", sbrk},
-    {"syscall", syscall},
+    {"syscall", __syscall}, // FIXME
     {"lockf", lockf},
-    {"lockf64", lockf64},
-    {"fdatasync", fdatasync},
+    // {"lockf64", lockf64},
+    {"fdatasync", my_fdatasync},
     {"swab", swab},
     /* time.h */
     {"clock", clock},
@@ -2237,23 +2260,23 @@ static struct _hook hooks[] = {
     {"ctime", ctime},
     {"asctime_r", asctime_r},
     {"ctime_r", ctime_r},
-    {"__tzname", __tzname},
-    {"__daylight", &__daylight},
-    {"__timezone", &__timezone},
+    // {"__tzname", __tzname}, FIXME XXX
+    // {"__daylight", &__daylight},
+    // {"__timezone", &__timezone},
     {"tzname", tzname},
     {"tzset", tzset},
     {"daylight", &daylight},
     {"timezone", &timezone},
-    {"stime", stime},
+    // {"stime", stime},
     {"timegm", timegm},
     {"timelocal", timelocal},
-    {"dysize", dysize},
+    // {"dysize", dysize},
     {"nanosleep", nanosleep},
     {"clock_getres", clock_getres},
     {"clock_gettime", clock_gettime},
     {"clock_settime", clock_settime},
-    {"clock_nanosleep", clock_nanosleep},
-    {"clock_getcpuclockid", clock_getcpuclockid},
+    // {"clock_nanosleep", clock_nanosleep},
+    // {"clock_getcpuclockid", clock_getcpuclockid},
     /* mman.h */
     {"mmap", mmap},
     {"munmap", munmap},
@@ -2264,8 +2287,8 @@ static struct _hook hooks[] = {
     {"mlockall", mlockall},
     {"munlockall", munlockall},
     /* signal.h */
-    {"__sysv_signal", __sysv_signal},
-    {"sysv_signal", sysv_signal},
+    // {"__sysv_signal", __sysv_signal},
+    // {"sysv_signal", sysv_signal},
     {"signal", signal},
     {"bsd_signal", signal},
     {"kill", kill},
@@ -2276,13 +2299,13 @@ static struct _hook hooks[] = {
     /* sys/stat.h */
     {"stat", my_stat},
     {"fstat", my_fstat},
-    {"stat64", my_stat64},
-    {"fstat64", my_fstat64},
+    // {"stat64", my_stat64},
+    // {"fstat64", my_fstat64},
     {"chmod", chmod},
     {"fchmod", fchmod},
     {"umask", umask},
     {"mkdir", mkdir},
-    /* sys/epoll.h */
+    /* sys/epoll.h FIXME XXX EPOLL */
     {"epoll_create", epoll_create},
     {"epoll_create1", epoll_create1},
     {"epoll_ctl", epoll_ctl},

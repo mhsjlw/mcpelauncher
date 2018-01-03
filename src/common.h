@@ -9,3 +9,5 @@ void stubSymbols(const char** symbols, void* stubfunc);
 void hookAndroidLog();
 void patchCallInstruction(void* patchOff, void* func, bool jump);
 void registerCrashHandler();
+
+void* loadFmod(const char** symbols);

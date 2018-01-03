@@ -8,7 +8,9 @@
 #include <unistd.h>
 #include <cxxabi.h>
 #include <execinfo.h>
-#include <malloc.h>
+#include <signal.h>
+// #include <malloc.h>
+#include <stdlib.h>
 
 extern "C" {
 #include "../hybris/include/hybris/hook.h"
@@ -25,6 +27,7 @@ bool loadLibrary(std::string path) {
 }
 
 void* loadLibraryOS(std::string path, const char** symbols) {
+  printf("YO, IT'S HERE, EH : %s\n", path.c_str());
     void* handle = dlopen(path.c_str(), RTLD_LAZY);
     if (handle == nullptr) {
         printf("failed to load library %s: %s\n", path.c_str(), dlerror());
@@ -41,6 +44,25 @@ void* loadLibraryOS(std::string path, const char** symbols) {
         i++;
     }
     return handle;
+}
+
+void* loadFmod(const char** symbols) {
+  void* handle = dlopen("libfmod.dylib", RTLD_LAZY);
+  if (handle == nullptr) {
+      printf("failed to load library: %s\n", dlerror());
+      return nullptr;
+  }
+  printf("oslib: %i\n", (int) handle);
+  int i = 0;
+  while (true) {
+      const char* sym = symbols[i];
+      if (sym == nullptr)
+          break;
+      void* ptr = dlsym(handle, sym);
+      hybris_hook(sym, ptr);
+      i++;
+  }
+  return handle;
 }
 
 void* loadMod(std::string path) {
