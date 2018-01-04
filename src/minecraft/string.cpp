@@ -51,6 +51,7 @@ mcpe::string mcpe::string::operator+(const string &str) {
 */
 mcpe::string& mcpe::string::operator=(const mcpe::string &str) {
     assignRep(str.getRep());
+    return *this;
 }
 
 const char *mcpe::string::c_str() const {
