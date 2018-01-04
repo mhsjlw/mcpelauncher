@@ -100,7 +100,7 @@ public:
     }
     mcpe::string getAssetFileFullPath(mcpe::string const& s) {
         printf("get assert full path: %s\n", s.c_str());
-        return mcpe::string(assetsDir) + s;
+        return mcpe::string(assetsDir + s.std());
     }
     int getScreenType() {
         if (enablePocketGuis)
