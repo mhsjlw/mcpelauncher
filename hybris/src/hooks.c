@@ -77,6 +77,8 @@
 #include "../include/hybris/properties.h"
 #include "ctype.h"
 
+#include "hooks_cpp.hpp"
+
 static locale_t hybris_locale;
 static int locale_inited = 0;
 /* TODO:
@@ -1714,9 +1716,12 @@ int epoll_create1(){};
 int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event){};
 int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout){};
 
-int FAKE_pthread_once(pthread_once_t *once_control, void (*init_routine)(void)) {
-  abort();
-}
+// int FAKE_pthread_once(uintptr_t *once_control, void (*init_routine)(void)) {
+//   pthread_once_t once_control_r = PTHREAD_ONCE_INIT;
+//   return pthread_once(&once_control_r, init_routine);
+//   // printf("%d", &once_control);
+//   // abort();
+// }
 
 static struct _hook hooks[] = {
     {"property_get", property_get },
@@ -1959,7 +1964,7 @@ static struct _hook hooks[] = {
     // {"pthread_cond_timedwait_relative_np", my_pthread_cond_timedwait_relative_np},
     // {"pthread_key_delete", pthread_key_delete},
     // {"pthread_setname_np", pthread_setname_np},
-    {"pthread_once", pthread_once},
+    {"pthread_once", my_pthread_once},
     {"pthread_key_create", pthread_key_create},
     {"pthread_setspecific", pthread_setspecific},
     {"pthread_getspecific", pthread_getspecific},

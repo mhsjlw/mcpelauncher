@@ -3,6 +3,7 @@ project(mcpelauncher)
 
 enable_language(C ASM)
 
+set(CMAKE_BUILD_TYPE Debug) # FIXME
 #SET(CMAKE_CXX_COMPILER "g++-4.9")
 #SET(CMAKE_C_COMPILER "gcc-4.9")
 set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -m32")
@@ -38,7 +39,7 @@ endif()
 
 include_directories(${PNG_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} libs/rapidxml/)
 
-set(HYBRIS_SOURCES hybris/src/cache.c hybris/src/dlfcn.c hybris/src/hooks.c hybris/src/hooks_shm.c hybris/src/logging.c hybris/src/properties.c hybris/src/strlcpy.c hybris/src/ctype.c hybris/src/sysconf.c hybris/src/jb/dlfcn.c hybris/src/jb/linker.c hybris/src/jb/linker_environ.c hybris/src/jb/linker_format.c hybris/src/jb/rt.c)
+set(HYBRIS_SOURCES hybris/src/cache.c hybris/src/dlfcn.c hybris/src/hooks.c hybris/src/hooks.cpp hybris/src/hooks_shm.c hybris/src/logging.c hybris/src/properties.c hybris/src/strlcpy.c hybris/src/ctype.c hybris/src/sysconf.c hybris/src/jb/dlfcn.c hybris/src/jb/linker.c hybris/src/jb/linker_environ.c hybris/src/jb/linker_format.c hybris/src/jb/rt.c)
 
 set(SOURCE_FILES src/main.cpp src/common.cpp src/hook.cpp src/linux_appplatform.cpp src/minecraft/types.cpp src/minecraft/ImagePickingCallback.h src/minecraft/FilePickerSettings.h src/minecraft/Common.h src/minecraft/Xbox.h src/minecraft/string.cpp src/minecraft/string.h src/base64.cpp src/base64.h src/msa.cpp src/msa.h src/msa_token.h src/msa_network.cpp src/msa_network.h src/xboxlive.h src/xboxlive.cpp src/cll.cpp src/cll.h src/async_result_util.h src/extract.cpp src/extract.h src/path_helper.cpp src/path_helper.h)
 

@@ -2,15 +2,26 @@
 
 #include <string>
 #include <cstring>
+#include <stdint.h>
 
 namespace mcpe {
 
 struct string {
 
-private:
-    void* ptr;
-
 public:
+  struct _Rep {
+    size_t length;
+    size_t capacity;
+    volatile int refcount;
+
+    void addRef() {
+      refcount++;
+    }
+    void removeRef() {
+      if (--refcount == 0)
+        delete this;
+    }
+  };
     static mcpe::string* empty;
 
     string();
@@ -28,8 +39,8 @@ public:
     string operator+(const string &str);
 
     bool operator==(const string &s) const {
-        if (s.ptr == ptr)
-            return true;
+        // if (s.ptr == ptr)
+        //     return true;
         if (s.length() != length())
             return false;
         return (memcmp(c_str(), s.c_str(), length()) == 0);
@@ -46,8 +57,12 @@ public:
         return std::string(c_str(), length());
     }
 
-};
+private:
+    _Rep* ptr;
 
+};
 }
 
 std::ostream& operator<<(std::ostream&, const mcpe::string&);
+
+static mcpe::string::_Rep* createRep(const char* c, size_t l);

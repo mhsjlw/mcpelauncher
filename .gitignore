@@ -10,9 +10,6 @@ device.conf.state
 mcpelauncher-icon.png
 mcpelauncher
 
-
-# Created by https://www.gitignore.io/api/c,c++,macos,cmake
-
 ### C ###
 # Prerequisites
 *.d
@@ -125,4 +122,5 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-# End of https://www.gitignore.io/api/c,c++,macos,cmake
+*.dat
+*.bin
