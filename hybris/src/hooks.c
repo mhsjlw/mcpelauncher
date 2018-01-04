@@ -308,16 +308,27 @@ static int my_pthread_attr_getschedpolicy(pthread_attr_t const *__attr, int *pol
     return pthread_attr_getschedpolicy(realattr, policy);
 }
 
-static int my_pthread_attr_setschedparam(pthread_attr_t *__attr, struct sched_param const *param)
+struct bionic_sched_param {
+    int sched_priority;
+};
+
+static int my_pthread_attr_setschedparam(pthread_attr_t *__attr, struct bionic_sched_param const *param)
 {
     pthread_attr_t *realattr = (pthread_attr_t *) *(unsigned int *) __attr;
-    return pthread_attr_setschedparam(realattr, param);
+    struct sched_param realparam;
+    pthread_attr_getschedparam(realattr, &realparam);
+    realparam.sched_priority = param->sched_priority;
+    return pthread_attr_setschedparam(realattr, &realparam);
 }
 
-static int my_pthread_attr_getschedparam(pthread_attr_t const *__attr, struct sched_param *param)
+static int my_pthread_attr_getschedparam(pthread_attr_t const *__attr, struct bionic_sched_param *param)
 {
     pthread_attr_t *realattr = (pthread_attr_t *) *(unsigned int *) __attr;
-    return pthread_attr_getschedparam(realattr, param);
+    struct sched_param realparam;
+    int ret = pthread_attr_getschedparam(realattr, &realparam);
+    if (param != NULL)
+        param->sched_priority = realparam.sched_priority;
+    return ret;
 }
 
 static int my_pthread_attr_setstacksize(pthread_attr_t *__attr, size_t stack_size)
@@ -953,6 +964,22 @@ static void my_pthread_cleanup_pop(int execute)
     LOGD("pthread_cleanup_pop: not implemented");
 }
 
+static int my_pthread_setschedparam(pthread_t thread, int policy, struct bionic_sched_param *param)
+{
+    struct sched_param realparam;
+    pthread_getschedparam(thread, NULL, &realparam);
+    realparam.sched_priority = param->sched_priority;
+    return pthread_setschedparam(thread, policy, &realparam);
+}
+
+static int my_pthread_getschedparam(pthread_t thread, int *policy, struct bionic_sched_param *param)
+{
+    struct sched_param realparam;
+    int ret = pthread_getschedparam(thread, policy, &realparam);
+    if (param != NULL)
+      param->sched_priority = realparam.sched_priority;
+    return ret;
+}
 
 static int my_set_errno(int oi_errno)
 {
@@ -1935,8 +1962,8 @@ static struct _hook hooks[] = {
     {"pthread_detach", pthread_detach},
     {"pthread_self", pthread_self},
     {"pthread_equal", pthread_equal},
-    {"pthread_getschedparam", pthread_getschedparam},
-    {"pthread_setschedparam", pthread_setschedparam},
+    {"pthread_getschedparam", my_pthread_getschedparam},
+    {"pthread_setschedparam", my_pthread_setschedparam},
     {"pthread_mutex_init", my_pthread_mutex_init},
     {"pthread_mutex_destroy", my_pthread_mutex_destroy},
     {"pthread_mutex_lock", my_pthread_mutex_lock},
