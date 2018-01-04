@@ -10,6 +10,7 @@
 #include <locale>
 #include <dirent.h>
 #include <fstream>
+#include <codecvt>
 // #include <X11/Xlib.h>
 #include <functional>
 #include <sys/mman.h>
@@ -149,7 +150,7 @@ static void minecraft_reshape(GLFWwindow* window, int w, int h) {
     client->setRenderingSize(w, h);
     client->setUISizeAndScale(w, h, pixelSize);
 }
-static void minecraft_mouse(int x, int y) {
+static void minecraft_mouse(GLFWwindow* window, double x, double y) {
     if (LinuxAppPlatform::mousePointerHidden) {
         int cx, cy;
         glfwGetWindowSize(window, &cx, &cy);
@@ -165,37 +166,52 @@ static void minecraft_mouse(int x, int y) {
 }
 
 
-static void minecraft_mouse_button(int x, int y, int btn, int action) {
-    int mcBtn = (btn == 1 ? 1 : (btn == 2 ? 3 : (btn == 3 ? 2 : (btn == 5 ? 4 : btn))));
-    // Mouse::feed((char) mcBtn, (char) (action == EGLUT_MOUSE_PRESS ? (btn == 5 ? -120 : (btn == 4 ? 120 : 1)) : 0), x, y, 0, 0);
+static void minecraft_mouse_button(GLFWwindow* window, int btn, int action, int mods) {
+  double x,y;
+  glfwGetCursorPos(window, &x, &y);
+  int mcBtn = (btn == GLFW_MOUSE_BUTTON_1 ? 1 : (btn == GLFW_MOUSE_BUTTON_2 ? 3 : (btn == GLFW_MOUSE_BUTTON_3 ? 2 : (btn == GLFW_MOUSE_BUTTON_5 ? 4 : btn))));
+  Mouse::feed((char) mcBtn, (char) (action == GLFW_PRESS ? (btn == GLFW_MOUSE_BUTTON_5 ? -120 : (btn == GLFW_MOUSE_BUTTON_4 ? 120 : 1)) : 0), x, y, 0, 0);
 }
 
 int getKeyMinecraft(int keyCode) {
-  // return 0;
-    // if (keyCode == 65505)
-    //     return 16;
-    // if (keyCode >= 97 && keyCode <= 122)
-    //     return (keyCode + 65 - 97);
-    // if (keyCode >= 65361 && keyCode <= 65364)
-    //     return (keyCode + 37 - 65361);
-    // if (keyCode >= 65470 && keyCode <= 65481)
-    //     return (keyCode + 112 - 65470);
-    //
-    // return keyCode;
+  return 0;
+    if (keyCode == 65505)
+        return 16;
+    if (keyCode >= 97 && keyCode <= 122)
+        return (keyCode + 65 - 97);
+    if (keyCode >= 65361 && keyCode <= 65364)
+        return (keyCode + 37 - 65361);
+    if (keyCode >= 65470 && keyCode <= 65481)
+        return (keyCode + 112 - 65470);
+
+    return keyCode;
 }
-static void minecraft_keyboard(char str[5], int action) {
-    // if (strcmp(str, "\t") == 0 || strcmp(str, "\26") == 0 || strcmp(str, "\33") == 0) // \t, paste, esc
-    //     return;
-    // if (action == EGLUT_KEY_PRESS || action == EGLUT_KEY_REPEAT) {
-    //     if (str[0] == 13) {
-    //         str[0] = 10;
-    //         str[1] = 0;
-    //     }
-    //     std::stringstream ss;
-    //     ss << str;
-    //     Keyboard::Keyboard_feedText(ss.str(), false, 0);
+static void minecraft_keyboard(GLFWwindow* window, unsigned int codepoint, int mods) {
+    uint32_t a(codepoint);
+
+    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv1;
+    std::string u8str = conv1.to_bytes(a);
+
+    // if (key == '\t' || key == '\26' || key == '\33') // \t, paste, esc
+        // return;
+
+      Keyboard::Keyboard_feedText(u8str, false, 0);
+    // if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+        // if (codepoint == GLFW_KEY_ENTER) {
+        //     codepoint = 10;
+        //     // str[1] = 0;
+        // }
+        //
+        // std::stringstream ss;
+        // ss << codepoint; //FIXME THIS IS A NUMBER !
+        //  Keyboard::Keyboard_feedText(ss.str(), false, 0);
     // }
 }
+
+static void minecraft_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  // Keyboard::Keyboard_feedText()
+}
+
 bool modCTRL = false;
 static void minecraft_keyboard_special(int key, int action) {
     // if (key == 65507)
@@ -710,6 +726,10 @@ int main(int argc, char *argv[]) {
     }
 
     glfwSetWindowSizeCallback(window, minecraft_reshape);
+    glfwSetCursorPosCallback(window, minecraft_mouse);
+    glfwSetMouseButtonCallback(window, minecraft_mouse_button);
+    glfwSetKeyCallback(window, minecraft_key);
+    glfwSetCharModsCallback(window, minecraft_keyboard);
     // eglutIdleFunc(minecraft_idle);
     // eglutReshapeFunc(minecraft_reshape);
     // eglutDisplayFunc(minecraft_draw);
@@ -736,6 +756,11 @@ int main(int argc, char *argv[]) {
 
         /* Poll for and process events */
         glfwPollEvents();
+        // minecraft_mouse();
+        // minecraft_mouse_button();
+        // minecraft_keyboard();
+        // minecraft_keyboard_special();
+        // minecraft_pase();
 
         minecraft_idle();
     }
