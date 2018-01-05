@@ -17,6 +17,8 @@ find_package(ZLIB REQUIRED)
 find_package(OpenSSL REQUIRED)
 # find_package(X11 REQUIRED)
 
+add_subdirectory(epoll_shim)
+
 set(CEF_ENABLED true)
 set(PLAYAPI_ENABLED true)
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/libs/cef)
@@ -37,7 +39,8 @@ if (PLAYAPI_ENABLED)
     set_target_properties(gplaydl PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
 
-include_directories(${PNG_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} libs/rapidxml/)
+# add_subdirectory(epoll_shim)
+include_directories(${PNG_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} libs/rapidxml/ epoll_shim/include)
 
 set(HYBRIS_SOURCES hybris/src/cache.c hybris/src/dlfcn.c hybris/src/hooks.c hybris/src/hooks.cpp hybris/src/hooks_shm.c hybris/src/logging.c hybris/src/properties.c hybris/src/strlcpy.c hybris/src/ctype.c hybris/src/sysconf.c hybris/src/jb/dlfcn.c hybris/src/jb/linker.c hybris/src/jb/linker_environ.c hybris/src/jb/linker_format.c hybris/src/jb/rt.c)
 
@@ -56,7 +59,9 @@ endif()
 file(GLOB LIBRARIES ext/libuuid.dylib ext/libzip.dylib ext/libpng.dylib ext/libglfw.dylib)
 
 add_executable(mcpelauncher ${HYBRIS_SOURCES} ${SOURCE_FILES})
-target_link_libraries(mcpelauncher ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT} z curl ${OPENSSL_LIBRARIES} crypto ${LIBRARIES})
+add_dependencies(mcpelauncher epoll-shim)
+
+target_link_libraries(mcpelauncher ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT} z curl ${OPENSSL_LIBRARIES} crypto ${LIBRARIES} epoll-shim)
 target_compile_definitions(mcpelauncher PRIVATE ANDROID_X86_LINKER _GNU_SOURCE LINKER_TEXT_BASE=0xB0000100 LINKER_AREA_SIZE=0x01000000 LINKER_DEBUG=3)
 
 if (CEF_ENABLED)
