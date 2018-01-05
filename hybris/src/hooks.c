@@ -1571,6 +1571,7 @@ int my_open(const char *pathname, int flags, ...)
 		va_end(ap);
 	}
 
+    printf("open %s\n", pathname);
 	return open(target_path, flags, mode);
 }
 
@@ -1639,6 +1640,40 @@ int my_fstat64(int fd, struct bionic_stat64 *s)
     struct stat tmp;
     int ret = fstat(fd, &tmp);
     stat_to_bionic_stat(&tmp, s);
+    return ret;
+}
+
+int my_poll(struct pollfd *fds, nfds_t nfds, int timeout)
+{
+    // Mac OS has a broken poll implementation
+    struct timeval t;
+    t.tv_sec = timeout / 1000;
+    t.tv_usec = (timeout % 1000) * 1000;
+
+    fd_set r_fdset, w_fdset, e_fdset;
+    int maxfd = 0;
+    FD_ZERO(&r_fdset);
+    FD_ZERO(&w_fdset);
+    FD_ZERO(&e_fdset);
+    for (nfds_t i = 0; i < nfds; i++) {
+        if (fds[i].fd > maxfd)
+            maxfd = fds[i].fd;
+        if (fds[i].events & POLLIN || fds[i].events & POLLPRI)
+            FD_SET(fds[i].fd, &r_fdset);
+        if (fds[i].events & POLLOUT)
+            FD_SET(fds[i].fd, &w_fdset);
+        FD_SET(fds[i].fd, &e_fdset);
+    }
+    int ret = select(maxfd + 1, &r_fdset, &w_fdset, &e_fdset, &t);
+    for (nfds_t i = 0; i < nfds; i++) {
+        fds[i].revents = 0;
+        if (FD_ISSET(fds[i].fd, &r_fdset))
+            fds[i].revents |= POLLIN;
+        if (FD_ISSET(fds[i].fd, &w_fdset))
+            fds[i].revents |= POLLOUT;
+        if (FD_ISSET(fds[i].fd, &e_fdset))
+            fds[i].revents |= POLLERR;
+    }
     return ret;
 }
 
@@ -1777,7 +1812,6 @@ void *my_android_dlsym(void *handle, const char *symbol)
 
 // int *__errno_location(void) {}
 int *__syscall(void) {}
-
 
 // // ------------------- EPOLL ---------------------------------------------
 // /*
@@ -1969,7 +2003,7 @@ static struct _hook hooks[] = {
     {"ioctl", ioctl},
     {"select", select},
     {"utime", utime},
-    {"poll", poll},
+    {"poll", my_poll},
     {"setlocale", setlocale},
     {"__umoddi3", __umoddi3},
     {"__udivdi3", __udivdi3},
