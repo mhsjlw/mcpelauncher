@@ -1,3 +1,5 @@
+epoll_shim/src/*.dylib
+
 .idea/
 mods/
 libs/hybris/libminecraftpe.so
