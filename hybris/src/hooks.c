@@ -411,6 +411,12 @@ static int my_pthread_attr_getscope(pthread_attr_t const *__attr)
 //     return pthread_getattr_np(thid, realattr);
 // }
 
+typedef pthread_mutexattr_t *bionic_pthread_mutexattr_t;
+
+static pthread_mutexattr_t *hybris_get_mutexattr(__const bionic_pthread_mutexattr_t *attr) {
+    return *attr;
+}
+
 /*
  * pthread_mutex* functions
  *
@@ -420,13 +426,13 @@ static int my_pthread_attr_getscope(pthread_attr_t const *__attr)
  * */
 
 static int my_pthread_mutex_init(pthread_mutex_t *__mutex,
-                          __const pthread_mutexattr_t *__mutexattr)
+                          __const bionic_pthread_mutexattr_t *__mutexattr)
 {
     pthread_mutex_t *realmutex = NULL;
 
     int pshared = 0;
     if (__mutexattr)
-        pthread_mutexattr_getpshared(__mutexattr, &pshared);
+        pthread_mutexattr_getpshared(hybris_get_mutexattr(__mutexattr), &pshared);
 
     if (!pshared) {
         /* non shared, standard mutex: use malloc */
@@ -574,10 +580,43 @@ static int my_pthread_mutex_unlock(pthread_mutex_t *__mutex)
 //     return pthread_mutex_timedlock(realmutex, &tv);
 // }
 
-static int my_pthread_mutexattr_setpshared(pthread_mutexattr_t *__attr,
+static int my_pthread_mutexattr_init(bionic_pthread_mutexattr_t *__attr)
+{
+    pthread_mutexattr_t *attr = malloc(sizeof(pthread_mutexattr_t));
+    *__attr = attr;
+    return pthread_mutexattr_init(attr);
+}
+
+static int my_pthread_mutexattr_destroy(bionic_pthread_mutexattr_t *__attr)
+{
+    pthread_mutexattr_t *attr = hybris_get_mutexattr(__attr);
+    int ret = pthread_mutexattr_destroy(attr);
+    free(attr);
+    return ret;
+}
+
+static int my_pthread_mutexattr_gettype(bionic_pthread_mutexattr_t *__attr,
+                                        int *__kind)
+{
+    return pthread_mutexattr_gettype(hybris_get_mutexattr(__attr), __kind);
+}
+
+static int my_pthread_mutexattr_settype(bionic_pthread_mutexattr_t *__attr,
+                                           int __kind)
+{
+    return pthread_mutexattr_settype(hybris_get_mutexattr(__attr), __kind);
+}
+
+static int my_pthread_mutexattr_getpshared(bionic_pthread_mutexattr_t *__attr,
+                                           int *pshared)
+{
+    return pthread_mutexattr_getpshared(hybris_get_mutexattr(__attr), pshared);
+}
+
+static int my_pthread_mutexattr_setpshared(bionic_pthread_mutexattr_t *__attr,
                                            int pshared)
 {
-    return pthread_mutexattr_setpshared(__attr, pshared);
+    return pthread_mutexattr_setpshared(hybris_get_mutexattr(__attr), pshared);
 }
 
 /*
@@ -2131,11 +2170,11 @@ static struct _hook hooks[] = {
     {"pthread_mutex_unlock", my_pthread_mutex_unlock},
     {"pthread_mutex_trylock", my_pthread_mutex_trylock},
     // {"pthread_mutex_lock_timeout_np", my_pthread_mutex_lock_timeout_np},
-    {"pthread_mutexattr_init", pthread_mutexattr_init},
-    {"pthread_mutexattr_destroy", pthread_mutexattr_destroy},
-    {"pthread_mutexattr_gettype", pthread_mutexattr_gettype},
-    {"pthread_mutexattr_settype", pthread_mutexattr_settype},
-    {"pthread_mutexattr_getpshared", pthread_mutexattr_getpshared},
+    {"pthread_mutexattr_init", my_pthread_mutexattr_init},
+    {"pthread_mutexattr_destroy", my_pthread_mutexattr_destroy},
+    {"pthread_mutexattr_gettype", my_pthread_mutexattr_gettype},
+    {"pthread_mutexattr_settype", my_pthread_mutexattr_settype},
+    {"pthread_mutexattr_getpshared", my_pthread_mutexattr_getpshared},
     {"pthread_mutexattr_setpshared", my_pthread_mutexattr_setpshared},
     {"pthread_condattr_init", pthread_condattr_init},
     {"pthread_condattr_getpshared", pthread_condattr_getpshared},
