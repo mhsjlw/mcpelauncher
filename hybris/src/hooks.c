@@ -1677,6 +1677,92 @@ int my_poll(struct pollfd *fds, nfds_t nfds, int timeout)
     return ret;
 }
 
+static int bionic_convert_sockopt_socket_option(int opt)
+{
+    if (opt == 1) return SO_DEBUG;
+    if (opt == 2) return SO_REUSEADDR;
+    if (opt == 3) return SO_TYPE;
+    if (opt == 4) return SO_ERROR;
+    if (opt == 5) return SO_DONTROUTE;
+    if (opt == 6) return SO_BROADCAST;
+    if (opt == 7) return SO_SNDBUF;
+    if (opt == 8) return SO_RCVBUF;
+    //if (opt == 32) return SO_SNDBUFFORCE;
+    //if (opt == 33) return SO_RCVBUFFORCE;
+    if (opt == 9) return SO_KEEPALIVE;
+    if (opt == 10) return SO_OOBINLINE;
+    //if (opt == 11) return SO_NO_CHECK;
+    //if (opt == 12) return SO_PRIORITY;
+    if (opt == 13) return SO_LINGER;
+    //if (opt == 14) return SO_BSDCOMPAT;
+    if (opt == 15) return SO_REUSEPORT;
+    return -1;
+}
+
+static int bionic_convert_sockopt_ip_option(int opt)
+{
+    if (opt == 1) return IP_TOS;
+    if (opt == 2) return IP_TTL;
+    if (opt == 3) return IP_HDRINCL;
+    if (opt == 4) return IP_OPTIONS;
+    //if (opt == 5) return IP_ROUTER_ALERT;
+    if (opt == 6) return IP_RECVOPTS;
+    if (opt == 7) return IP_RETOPTS;
+    //if (opt == 8) return IP_PKTINFO;
+    //if (opt == 9) return IP_PKTOPTIONS;
+    //if (opt == 10) return IP_MTU_DISCOVER;
+    //if (opt == 11) return IP_RECVERR;
+    //if (opt == 12) return IP_RECVTTL;
+    //if (opt == 13) return IP_RECVTOS;
+    //if (opt == 14) return IP_MTU;
+    //if (opt == 15) return IP_FREEBIND;
+    if (opt == 16) return IP_IPSEC_POLICY;
+    //if (opt == 17) return IP_XFRM_POLICY;
+    //if (opt == 18) return IP_PASSSEC;
+
+    if (opt == 32) return IP_MULTICAST_IF;
+    if (opt == 33) return IP_MULTICAST_TTL;
+    if (opt == 34) return IP_MULTICAST_LOOP;
+    if (opt == 35) return IP_ADD_MEMBERSHIP;
+    if (opt == 36) return IP_DROP_MEMBERSHIP;
+    //if (opt == 37) return IP_UNBLOCK_SOURCE;
+    //if (opt == 38) return IP_BLOCK_SOURCE;
+    //if (opt == 39) return IP_ADD_SOURCE_MEMBERSHIP;
+    //if (opt == 40) return IP_DROP_SOURCE_MEMBERSHIP;
+    //if (opt == 41) return IP_MSFILTER;
+    return -1;
+}
+
+static int bionic_convert_sockopt_option(int *level, int *optname)
+{
+    if (*level == 1) { // SOL_SOCKET
+        *level = SOL_SOCKET;
+        *optname = bionic_convert_sockopt_socket_option(*optname);
+    }
+    if (*level == IPPROTO_IP || *level == IPPROTO_IPV6) {
+        *optname = bionic_convert_sockopt_ip_option(*optname);
+    }
+    if (*optname == -1) {
+        printf("WARN: unknown sockopt\n");
+        return 0;
+    }
+    return 1;
+}
+
+int my_getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen)
+{
+    if (!bionic_convert_sockopt_option(&level, &optname))
+        return 0;
+    return getsockopt(sockfd, level, optname, optval, optlen);
+}
+
+int my_setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
+{
+    if (!bionic_convert_sockopt_option(&level, &optname))
+        return 0;
+    return setsockopt(sockfd, level, optname, optval, optlen);
+}
+
 /**
  * NOTE: Normally we don't have to wrap __system_property_get (libc.so) as it is only used
  * through the property_get (libcutils.so) function. However when property_get is used
@@ -2338,8 +2424,8 @@ static struct _hook hooks[] = {
     // {"sendmmsg", sendmmsg},
     {"recvmsg", recvmsg},
     // {"recvmmsg", recvmmsg},
-    {"getsockopt", getsockopt},
-    {"setsockopt", setsockopt},
+    {"getsockopt", my_getsockopt},
+    {"setsockopt", my_setsockopt},
     {"listen", listen},
     {"accept", accept},
     // {"accept4", accept4},
