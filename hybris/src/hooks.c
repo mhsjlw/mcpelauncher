@@ -415,6 +415,8 @@ static int my_pthread_attr_getscope(pthread_attr_t const *__attr)
 typedef pthread_mutexattr_t *bionic_pthread_mutexattr_t;
 
 static pthread_mutexattr_t *hybris_get_mutexattr(__const bionic_pthread_mutexattr_t *attr) {
+    if (!attr)
+        return NULL;
     return *attr;
 }
 
@@ -431,11 +433,11 @@ static int my_pthread_mutex_init(pthread_mutex_t *__mutex,
 {
     pthread_mutex_t *realmutex = NULL;
 
-    int pshared = 0;
+    int pshared = PTHREAD_PROCESS_PRIVATE;
     if (__mutexattr)
         pthread_mutexattr_getpshared(hybris_get_mutexattr(__mutexattr), &pshared);
 
-    if (!pshared) {
+    if (pshared == PTHREAD_PROCESS_PRIVATE) {
         /* non shared, standard mutex: use malloc */
         realmutex = malloc(sizeof(pthread_mutex_t));
 
@@ -451,7 +453,7 @@ static int my_pthread_mutex_init(pthread_mutex_t *__mutex,
             realmutex = (pthread_mutex_t *)hybris_get_shmpointer(handle);
     }
 
-    return pthread_mutex_init(realmutex, __mutexattr);
+    return pthread_mutex_init(realmutex, hybris_get_mutexattr(__mutexattr));
 }
 
 static int my_pthread_mutex_destroy(pthread_mutex_t *__mutex)
@@ -611,12 +613,18 @@ static int my_pthread_mutexattr_settype(bionic_pthread_mutexattr_t *__attr,
 static int my_pthread_mutexattr_getpshared(bionic_pthread_mutexattr_t *__attr,
                                            int *pshared)
 {
-    return pthread_mutexattr_getpshared(hybris_get_mutexattr(__attr), pshared);
+    int ret = pthread_mutexattr_getpshared(hybris_get_mutexattr(__attr), pshared);
+    if (*pshared == PTHREAD_PROCESS_PRIVATE)
+        *pshared = 0;
+    else if (*pshared == PTHREAD_PROCESS_SHARED)
+        *pshared = 1;
+    return ret;
 }
 
 static int my_pthread_mutexattr_setpshared(bionic_pthread_mutexattr_t *__attr,
                                            int pshared)
 {
+    pshared = pshared == 1 ? PTHREAD_PROCESS_SHARED : PTHREAD_PROCESS_PRIVATE;
     return pthread_mutexattr_setpshared(hybris_get_mutexattr(__attr), pshared);
 }
 
@@ -633,12 +641,12 @@ static int my_pthread_cond_init(pthread_cond_t *cond,
 {
     pthread_cond_t *realcond = NULL;
 
-    int pshared = 0;
+    int pshared = PTHREAD_PROCESS_PRIVATE;
 
     if (attr)
         pthread_condattr_getpshared(attr, &pshared);
 
-    if (!pshared) {
+    if (pshared == PTHREAD_PROCESS_PRIVATE) {
         /* non shared, standard cond: use malloc */
         realcond = malloc(sizeof(pthread_cond_t));
 
@@ -863,6 +871,7 @@ static int my_pthread_rwlockattr_setpshared(pthread_rwlockattr_t *__attr,
                                             int pshared)
 {
     pthread_rwlockattr_t *realattr = (pthread_rwlockattr_t *) *(unsigned int *) __attr;
+    pshared = pshared == 1 ? PTHREAD_PROCESS_SHARED : PTHREAD_PROCESS_PRIVATE;
     return pthread_rwlockattr_setpshared(realattr, pshared);
 }
 
@@ -870,7 +879,12 @@ static int my_pthread_rwlockattr_getpshared(pthread_rwlockattr_t *__attr,
                                             int *pshared)
 {
     pthread_rwlockattr_t *realattr = (pthread_rwlockattr_t *) *(unsigned int *) __attr;
-    return pthread_rwlockattr_getpshared(realattr, pshared);
+    int ret = pthread_rwlockattr_getpshared(realattr, pshared);
+    if (*pshared == PTHREAD_PROCESS_PRIVATE)
+        *pshared = 0;
+    else if (*pshared == PTHREAD_PROCESS_SHARED)
+        *pshared = 1;
+    return ret;
 }
 
 /*
@@ -886,7 +900,7 @@ static int my_pthread_rwlock_init(pthread_rwlock_t *__rwlock,
 {
     pthread_rwlock_t *realrwlock = NULL;
     pthread_rwlockattr_t *realattr = NULL;
-    int pshared = 0;
+    int pshared = PTHREAD_PROCESS_PRIVATE;
 
     if (__attr != NULL)
         realattr = (pthread_rwlockattr_t *) *(unsigned int *) __attr;
@@ -894,7 +908,7 @@ static int my_pthread_rwlock_init(pthread_rwlock_t *__rwlock,
     if (realattr)
         pthread_rwlockattr_getpshared(realattr, &pshared);
 
-    if (!pshared) {
+    if (pshared == PTHREAD_PROCESS_PRIVATE) {
         /* non shared, standard rwlock: use malloc */
         realrwlock = malloc(sizeof(pthread_rwlock_t));
 
@@ -1580,23 +1594,6 @@ struct bionic_stat64 {
 };
 
 void stat_to_bionic_stat(struct stat *s, struct bionic_stat64 *b) {
-    // b->st_dev = s->st_dev;
-    // b->__st_ino = s->st_ino;
-    // b->st_mode = s->st_mode;
-    // b->st_nlink = s->st_nlink;
-    // b->st_uid = s->st_uid;
-    // b->st_gid = s->st_gid;
-    // b->st_rdev = s->st_rdev;
-    // b->st_size = s->st_size;
-    // b->st_blksize = (unsigned long) s->st_blksize;
-    // b->st_blocks = (unsigned long long) s->st_blocks;
-    // b->st_atim = s->st_atim;
-    // b->st_mtim = s->st_mtim;
-    // b->st_ctim = s->st_ctim;
-    // b->st_ino = s->st_ino;
-}
-// void stat64_to_bionic_stat(struct stat64 *s, struct bionic_stat64 *b)
-void stat64_to_bionic_stat(struct stat *s, struct bionic_stat64 *b) {
     b->st_dev = s->st_dev;
     b->st_ino = s->st_ino;
     b->st_mode = s->st_mode;
@@ -1607,9 +1604,9 @@ void stat64_to_bionic_stat(struct stat *s, struct bionic_stat64 *b) {
     b->st_size = s->st_size;
     b->st_blksize = (unsigned long) s->st_blksize;
     b->st_blocks = (unsigned long long) s->st_blocks;
-    // b->st_atim = s->st_atim;
-    // b->st_mtim = s->st_mtim;
-    // b->st_ctim = s->st_ctim;
+    b->st_atim = s->st_atimespec;
+    b->st_mtim = s->st_mtimespec;
+    b->st_ctim = s->st_ctimespec;
     b->st_ino = s->st_ino;
 }
 
@@ -1631,17 +1628,17 @@ int my_fstat(int fd, struct bionic_stat64 *s)
 
 int my_stat64(const char* path, struct bionic_stat64 *s)
 {
-    struct stat64 tmp;
-    int ret = stat64(path, &tmp);
-    stat64_to_bionic_stat(&tmp, s);
+    struct stat tmp;
+    int ret = stat(path, &tmp);
+    stat_to_bionic_stat(&tmp, s);
     return ret;
 }
 
 int my_fstat64(int fd, struct bionic_stat64 *s)
 {
-    struct stat64 tmp;
-    int ret = fstat64(fd, &tmp);
-    stat64_to_bionic_stat(&tmp, s);
+    struct stat tmp;
+    int ret = fstat(fd, &tmp);
+    stat_to_bionic_stat(&tmp, s);
     return ret;
 }
 
