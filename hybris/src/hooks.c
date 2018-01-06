@@ -1783,6 +1783,72 @@ void *__get_tls_hooks()
   return tls_hooks;
 }
 
+struct android_sockaddr {
+    unsigned short sa_family;
+    char sa_data[14];
+};
+
+sa_family_t hybris_convert_family_to_native(unsigned short family)
+{
+    if (family == 0) return AF_UNSPEC;
+    if (family == 2) return AF_INET;
+    if (family == 10) return AF_INET6;
+    printf("hybris_convert_family_to_native: unsupported family %i\n", family);
+    return family;
+}
+
+unsigned short hybris_convert_family_from_native(sa_family_t family)
+{
+    if (family == AF_UNSPEC) return 0;
+    if (family == AF_INET) return 2;
+    if (family == AF_INET6) return 10;
+    printf("hybris_convert_family_to_native: unsupported family %i\n", family);
+    return family;
+}
+
+int hybris_get_addr_size(__const struct android_sockaddr *from_addr)
+{
+    sa_family_t family = hybris_convert_family_to_native(from_addr->sa_family);
+    if (family == AF_INET) {
+        return sizeof(struct sockaddr_in);
+    } else if (family == AF_INET6) {
+        return sizeof(struct sockaddr_in6);
+    } else {
+        printf("hybris_get_addr_size: unsupported family\n");
+        return 0;
+    }
+}
+
+int hybris_convert_addr_to_native(__const struct android_sockaddr *from_addr, struct sockaddr *to_addr)
+{
+    sa_family_t family = hybris_convert_family_to_native(from_addr->sa_family);
+    if (family == AF_INET) {
+        to_addr->sa_len = sizeof(struct sockaddr_in);
+        memcpy(&to_addr->sa_family, from_addr, sizeof(struct sockaddr_in) -
+                ((unsigned int) &to_addr->sa_family - (unsigned int) to_addr));
+    } else if (family == AF_INET6) {
+        to_addr->sa_len = sizeof(struct sockaddr_in6);
+        memcpy(&to_addr->sa_family, from_addr, sizeof(struct sockaddr_in6) -
+                ((unsigned int) &to_addr->sa_family - (unsigned int) to_addr));
+    } else {
+        printf("bionic_convert_addr_to_native: unsupported family\n");
+        return 0;
+    }
+    to_addr->sa_family = family;
+    return 1;
+}
+
+int hybris_convert_addr_from_native(__const struct sockaddr *from_addr, struct android_sockaddr *to_addr,
+                                    size_t max_size)
+{
+    size_t size = from_addr->sa_len - ((unsigned int) &from_addr->sa_family - (unsigned int) from_addr);
+    if (max_size < size)
+        size = max_size;
+    memcpy(to_addr, &from_addr->sa_family, size);
+    to_addr->sa_family = hybris_convert_family_from_native(from_addr->sa_family);
+    return 1;
+}
+
 struct android_addrinfo {
     int	ai_flags;	/* AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST */
     int	ai_family;	/* PF_xxx */
@@ -1790,7 +1856,7 @@ struct android_addrinfo {
     int	ai_protocol;	/* 0 or IPPROTO_xxx for IPv4 and IPv6 */
     socklen_t ai_addrlen;	/* length of ai_addr */
     char	*ai_canonname;	/* canonical name for hostname */
-    struct	sockaddr *ai_addr;	/* binary address */
+    struct	android_sockaddr *ai_addr;	/* binary address */
     struct	android_addrinfo *ai_next;	/* next structure in linked list */
 };
 struct android_addrinfo* convert_addrinfo(struct addrinfo* res) {
@@ -1800,8 +1866,12 @@ struct android_addrinfo* convert_addrinfo(struct addrinfo* res) {
     ares->ai_socktype = res->ai_socktype;
     ares->ai_protocol = res->ai_protocol;
     ares->ai_addrlen = res->ai_addrlen;
-    ares->ai_canonname = res->ai_canonname;
-    ares->ai_addr = res->ai_addr;
+    ares->ai_canonname = NULL; //res->ai_canonname;
+    size_t conv_addrlen = res->ai_addrlen -
+            ((unsigned int) &res->ai_addr->sa_family - (unsigned int) res->ai_addr);
+    struct android_sockaddr *conv_addr = malloc(conv_addrlen);
+    hybris_convert_addr_from_native(res->ai_addr, conv_addr, conv_addrlen);
+    ares->ai_addr = conv_addr;
     ares->ai_next = NULL;
     if (res->ai_next != NULL) {
         ares->ai_next = convert_addrinfo(res->ai_next);
@@ -1820,7 +1890,11 @@ int my_getaddrinfo(const char *node, const char *service,
         hints.ai_protocol = ahints->ai_protocol;
         hints.ai_addrlen = ahints->ai_addrlen;
         hints.ai_canonname = ahints->ai_canonname;
-        hints.ai_addr = ahints->ai_addr;
+        hints.ai_addr = NULL;
+        if (ahints->ai_addr != NULL) {
+            hints.ai_addr = alloca(hybris_get_addr_size(ahints->ai_addr));
+            hybris_convert_addr_to_native(ahints->ai_addr, hints.ai_addr);
+        }
     }
     struct addrinfo* res;
     int ret = getaddrinfo(node, service, (ahints == NULL ? NULL : &hints), &res);
@@ -1841,10 +1915,43 @@ void my_freeaddrinfo(struct android_addrinfo *ai) {
     while (ai) {
         if (ai->ai_canonname)
             free(ai->ai_canonname);
+        if (ai->ai_addr)
+            free(ai->ai_addr);
         ai_next = ai->ai_next;
         free(ai);
         ai = ai_next;
     }
+}
+
+int my_bind(int sockfd, const struct android_sockaddr *addr, socklen_t addrlen)
+{
+    struct sockaddr *conv_addr = alloca(hybris_get_addr_size(addr));
+    if (!hybris_convert_addr_to_native(addr, conv_addr))
+        return -1;
+    return bind(sockfd, conv_addr, addrlen);
+}
+
+ssize_t my_sendto(int socket, const void *buffer, size_t length, int flags,
+                  const struct android_sockaddr *dest_addr, socklen_t dest_len)
+{
+    struct sockaddr *conv_addr = alloca(hybris_get_addr_size(dest_addr));
+    if (!hybris_convert_addr_to_native(dest_addr, conv_addr))
+        return -1;
+    return sendto(socket, buffer, length, flags, conv_addr, dest_len);
+}
+
+int my_getsockname(int sockfd, struct android_sockaddr *addr, socklen_t *addrlen)
+{
+    struct sockaddr_storage stor;
+    socklen_t ret_size = sizeof(stor);
+    int ret = getsockname(sockfd, (struct sockaddr *) &stor, &ret_size);
+    if (ret == 0) {
+        //stor.ss_len = ret_size;
+        if (!hybris_convert_addr_from_native((struct sockaddr *) &stor, addr, *addrlen))
+            return -1;
+        *addrlen = ret_size - 1;
+    }
+    return ret;
 }
 
 int my_fdatasync(int fildes) {
@@ -1897,92 +2004,6 @@ void *my_android_dlsym(void *handle, const char *symbol)
 
 
 int *__syscall(void) {}
-
-//struct sockaddr {
-//    __uint8_t sa_len;
-//    sa_family_t sa_family;
-//    char sa_data[14];
-//};
-
-//struct sockaddr_in {
-//    __uint8_t	sin_len;
-//    sa_family_t	sin_family;
-//    in_port_t	sin_port;
-//    struct	in_addr sin_addr;
-//    char		sin_zero[8];
-//};
-
-//struct sockaddr_in6 {
-//    __uint8_t	sin6_len;
-//    sa_family_t	sin6_family;
-//    in_port_t	sin6_port;
-//    __uint32_t	sin6_flowinfo;
-//    struct in6_addr	sin6_addr;
-//    __uint32_t	sin6_scope_id;
-//};
-
-struct sockaddr_bionic {
-    sa_family_t sa_family;
-    char sa_data[14];
-};
-
-struct sockaddr_in_bionic {
-    sa_family_t sin_family;
-    unsigned short int sin_port;
-    struct in_addr sin_addr;
-    unsigned char sin_zero[8];
-};
-
-struct sockaddr_in6_bionic {
-    unsigned short int sin6_family;
-    __uint16_t sin6_port;
-    __uint32_t sin6_flowinfo;
-    struct in6_addr sin6_addr;
-    __uint32_t sin6_scope_id;
-};
-
-const struct sockaddr* convert_bionic_addr_to_bsd(const struct sockaddr_bionic *dest_addr) {
-    struct sockaddr addr;
-
-    int family = dest_addr->sa_family;
-    if(family == AF_INET) {
-        // v4
-        struct sockaddr_in_bionic* dest_addr_in = (struct sockaddr_in_bionic*) dest_addr->sa_data;
-
-        struct sockaddr_in addr_in;
-        addr_in.sin_len = sizeof(struct sockaddr_in);
-        addr_in.sin_family = AF_INET;
-        addr_in.sin_port = dest_addr_in->sin_port;
-        addr_in.sin_addr = dest_addr_in->sin_addr;
-        memcpy(addr_in.sin_zero, dest_addr_in->sin_zero, sizeof(unsigned char) * 8); // XXX should this be 9 to get the null terminator
-
-        addr.sa_len = sizeof(struct sockaddr_in_bionic);
-        addr.sa_family = AF_INET;
-        memcpy(addr.sa_data, (const void*) &addr_in, sizeof(struct sockaddr_in));
-
-        return (const struct sockaddr*) &addr;
-    } else if(family == AF_INET6) {
-        // v6
-        struct sockaddr_in6_bionic* dest_addr_in6 = (struct sockaddr_in6_bionic*) dest_addr->sa_data;
-
-        struct sockaddr_in6 addr_in6;
-        addr_in6.sin6_len = sizeof(struct sockaddr_in6);
-        addr_in6.sin6_family = AF_INET6;
-        addr_in6.sin6_port = dest_addr_in6->sin6_port;
-        addr_in6.sin6_flowinfo = dest_addr_in6->sin6_flowinfo;
-        addr_in6.sin6_addr = dest_addr_in6->sin6_addr;
-        addr_in6.sin6_scope_id = dest_addr_in6->sin6_scope_id;
-
-        return (const struct sockaddr*) &addr;
-    } else {
-        printf("sendto() asked for neither AF_INET nor AF_INET6, refusing to respond!\n");
-        return -1;
-    }
-}
-
-ssize_t my_sendto(int socket, const void *buffer, size_t length, int flags, const struct sockaddr_bionic *dest_addr, socklen_t dest_len) {
-    return sendto(socket, buffer, length, flags, convert_bionic_addr_to_bsd(dest_addr), dest_len);
-}
 
 static struct _hook hooks[] = {
     {"property_get", property_get },
@@ -2328,8 +2349,8 @@ static struct _hook hooks[] = {
     /* socket.h */
     {"socket", socket},
     {"socketpair", socketpair},
-    {"bind", bind},
-    {"getsockname", getsockname},
+    {"bind", my_bind},
+    {"getsockname", my_getsockname},
     {"connect", connect},
     {"getpeername", getpeername},
     {"send", send},
