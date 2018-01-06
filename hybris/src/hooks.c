@@ -1896,177 +1896,93 @@ void *my_android_dlsym(void *handle, const char *symbol)
 }
 
 
-// int *__errno_location(void) {}
 int *__syscall(void) {}
 
-// // ------------------- EPOLL ---------------------------------------------
-// /*
-// Register	the  target  file  descriptor fd on the	epoll instance
-// referred to by the file descriptor epfd and associate the	 event
-// event with the internal file linked to fd.
-// */
-// #define EPOLL_CTL_ADD    1
-//
-// /*
-// Remove (deregister) the target file descriptor fd	from the epoll
-// instance	referred  to by	epfd.  The event is ignored and	can be
-// NULL (but	see BUGS below).
-// */
-// #define EPOLL_CTL_DEL    2
-//
-// /*
-// Change  the event	event associated with the target file descrip-
-// tor fd.
-// */
-// #define EPOLL_CTL_MOD    3
-//
-// /*
-// int
-//   kqueue(void);
-//
-//   int
-//   kevent(int	kq, const struct kevent	*changelist, int nchanges,
-// struct	kevent *eventlist, int nevents,
-// const struct timespec *timeout);
-//
-//   EV_SET(kev, ident,	filter,	flags, fflags, data, udata);
-// */
-//
-// #define EPOLLIN          0x00000001
-// #define EPOLLPRI         0x00000002
-// #define EPOLLOUT         0x00000004
-// #define EPOLLERR         0x00000008
-// #define EPOLLHUP         0x00000010
-// #define EPOLLRDNORM      0x00000040
-// #define EPOLLRDBAND      0x00000080
-// #define EPOLLWRNORM      0x00000100
-// #define EPOLLWRBAND      0x00000200
-// #define EPOLLMSG         0x00000400
-// #define EPOLLRDHUP       0x00002000
-// #define EPOLLWAKEUP      0x20000000
-// #define EPOLLONESHOT     0x40000000
-// #define EPOLLET          0x80000000
-//
-// typedef union epoll_data {
-//     void *ptr;
-//     int fd;
-//     unsigned int u32;
-//     unsigned long long u64;
-// } epoll_data_t;
-//
-// struct epoll_event {
-//     unsigned int events;
-//     epoll_data_t data;
-// };
-//
-// int epoll_create(int size) {
-//   int kq = kqueue();
-//
-//   if(kq == -1) {
-//     // printf("kqueue() failed\n");
-//     return -1;
-//   }
-//
-//   return kq;
-// }
-//
-// int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event) {
-//   struct kevent kev;
-//
-//   int flags = event->events;
-//   int edf = event->data.fd;
-//
-//   int filter;
-//
-//   if((flags & EPOLLIN) > 0) {
-//     printf("EPOLLIN\n");
-//     filter |= EVFILT_READ;
-//   }
-//
-//   if((flags & EPOLLOUT) > 0) {
-//     printf("EPOLLOUT\n");
-//     filter |= EVFILT_WRITE;
-//   }
-//
-//   if(op == EPOLL_CTL_ADD) {
-//     printf("EPOLL_CTL_ADD\n");
-//     // Register the file descriptor with kqueue, and associate events
-//     EV_SET(&kev, fd, filter, EV_ADD | EV_ENABLE, 0, 0, NULL);
-//
-//     if (kevent(epfd, &kev, 1, NULL, 0, NULL) == -1) {
-//       printf("Returned -1\n");
-//       return -1;
-//     }
-//
-//     return 0;
-//   } else if(op == EPOLL_CTL_DEL) {
-//     printf("EPOLL_CTL_DEL\n");
-//     // Remove the target file descriptor from the kqueue instance
-//
-//     EV_SET(&kev, fd, EVFILT_READ | EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
-//     if (kevent(epfd, &kev, 1, NULL, 0, NULL) == -1) {
-//       return -1;
-//     }
-//
-//     return 0;
-//   } else if(op == EPOLL_CTL_MOD) {
-//     printf("EPOLL_CTL_MOD\n");
-//     // Change the events associated with the file descriptor
-//
-//     EV_SET(&kev, fd, EVFILT_READ | EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
-//     EV_SET(&kev, fd, filter, EV_ADD | EV_ENABLE, 0, 0, NULL);
-//     if (kevent(epfd, &kev, 1, NULL, 0, NULL) == -1) {
-//       return -1;
-//     }
-//
-//     return 0;
-//   } else {
-//     return -1;
-//   }
-//
-//   return -1;
-// }
-//
-// int epoll_wait(int epfd, struct epoll_event *events, int max, int timeout) {
-//   // FIXME timeout
-//   printf("Timeout: %d, max: %d\n", timeout, max);
-//
-//   struct kevent kev[max];
-//
-//   if(max <= 0) {
-//     // Max events must be > 0
-//     return -1;
-//   }
-//
-//   if(timeout == 0) {
-//     return 0;
-//   }
-//
-//   // if(timeout == -1) {
-//   //   // Wait forever
-//   // }
-//
-//   // https://stackoverflow.com/a/15026373
-//   // struct timespec kev_timespec;
-//   // kev_timespec.tv_sec = timeout / 1000;
-//   // kev_timespec.tv_nsec = (timeout % 1000) * 1000000;
-//
-//   int r = kevent(epfd, NULL, 0, kev, max, NULL);
-//
-//   if(kev[0].filter == EV_ERROR)
-//     printf("Error occured in %d\n", 0);
-//
-//   // printf("Filter = %d, flags = %d\n", kev[0].filter, kev[0].flags);
-//
-//   if(r < 1) {
-//     return -1;
-//   }
-//
-//   printf("r = %d\n", r);
-//
-//   return r;
-// }
-// ------------------- EPOLL ---------------------------------------------
+//struct sockaddr {
+//    __uint8_t sa_len;
+//    sa_family_t sa_family;
+//    char sa_data[14];
+//};
+
+//struct sockaddr_in {
+//    __uint8_t	sin_len;
+//    sa_family_t	sin_family;
+//    in_port_t	sin_port;
+//    struct	in_addr sin_addr;
+//    char		sin_zero[8];
+//};
+
+//struct sockaddr_in6 {
+//    __uint8_t	sin6_len;
+//    sa_family_t	sin6_family;
+//    in_port_t	sin6_port;
+//    __uint32_t	sin6_flowinfo;
+//    struct in6_addr	sin6_addr;
+//    __uint32_t	sin6_scope_id;
+//};
+
+struct sockaddr_bionic {
+    sa_family_t sa_family;
+    char sa_data[14];
+};
+
+struct sockaddr_in_bionic {
+    sa_family_t sin_family;
+    unsigned short int sin_port;
+    struct in_addr sin_addr;
+    unsigned char sin_zero[8];
+};
+
+struct sockaddr_in6_bionic {
+    unsigned short int sin6_family;
+    __uint16_t sin6_port;
+    __uint32_t sin6_flowinfo;
+    struct in6_addr sin6_addr;
+    __uint32_t sin6_scope_id;
+};
+
+const struct sockaddr* convert_bionic_addr_to_bsd(const struct sockaddr_bionic *dest_addr) {
+    struct sockaddr addr;
+
+    int family = dest_addr->sa_family;
+    if(family == AF_INET) {
+        // v4
+        struct sockaddr_in_bionic* dest_addr_in = (struct sockaddr_in_bionic*) dest_addr->sa_data;
+
+        struct sockaddr_in addr_in;
+        addr_in.sin_len = sizeof(struct sockaddr_in);
+        addr_in.sin_family = AF_INET;
+        addr_in.sin_port = dest_addr_in->sin_port;
+        addr_in.sin_addr = dest_addr_in->sin_addr;
+        memcpy(addr_in.sin_zero, dest_addr_in->sin_zero, sizeof(unsigned char) * 8); // XXX should this be 9 to get the null terminator
+
+        addr.sa_len = sizeof(struct sockaddr_in_bionic);
+        addr.sa_family = AF_INET;
+        memcpy(addr.sa_data, (const void*) &addr_in, sizeof(struct sockaddr_in));
+
+        return (const struct sockaddr*) &addr;
+    } else if(family == AF_INET6) {
+        // v6
+        struct sockaddr_in6_bionic* dest_addr_in6 = (struct sockaddr_in6_bionic*) dest_addr->sa_data;
+
+        struct sockaddr_in6 addr_in6;
+        addr_in6.sin6_len = sizeof(struct sockaddr_in6);
+        addr_in6.sin6_family = AF_INET6;
+        addr_in6.sin6_port = dest_addr_in6->sin6_port;
+        addr_in6.sin6_flowinfo = dest_addr_in6->sin6_flowinfo;
+        addr_in6.sin6_addr = dest_addr_in6->sin6_addr;
+        addr_in6.sin6_scope_id = dest_addr_in6->sin6_scope_id;
+
+        return (const struct sockaddr*) &addr;
+    } else {
+        printf("sendto() asked for neither AF_INET nor AF_INET6, refusing to respond!\n");
+        return -1;
+    }
+}
+
+ssize_t my_sendto(int socket, const void *buffer, size_t length, int flags, const struct sockaddr_bionic *dest_addr, socklen_t dest_len) {
+    return sendto(socket, buffer, length, flags, convert_bionic_addr_to_bsd(dest_addr), dest_len);
+}
 
 static struct _hook hooks[] = {
     {"property_get", property_get },
@@ -2418,7 +2334,7 @@ static struct _hook hooks[] = {
     {"getpeername", getpeername},
     {"send", send},
     {"recv", recv},
-    {"sendto", sendto},
+    {"sendto", my_sendto},
     {"recvfrom", recvfrom},
     {"sendmsg", sendmsg},
     // {"sendmmsg", sendmmsg},
