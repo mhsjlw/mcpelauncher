@@ -590,6 +590,9 @@ int main(int argc, char *argv[]) {
     patchOff = (unsigned int) hybris_dlsym(handle, "_ZN4xbox8services12java_interop7log_cllERKSsS3_S3_");
     patchCallInstruction((void*) patchOff, (void*) &xblLogCLL, true);
 
+    char* shaderVersionPatch = (char*) (libBase + 0x32BB4C8);
+    strcpy(shaderVersionPatch, "#version 410\n");
+
     linuxHttpRequestInternalVtable = (void**) ::operator new(8);
     linuxHttpRequestInternalVtable[0] = magicast(&LinuxHttpRequestInternal::destroy);
     linuxHttpRequestInternalVtable[1] = magicast(&LinuxHttpRequestInternal::destroy);
