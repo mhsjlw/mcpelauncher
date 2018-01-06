@@ -742,7 +742,7 @@ int main(int argc, char *argv[]) {
     std::cout << "initialized display\n";
 
     // init
-    (*AppPlatform::_singleton)->_fireAppFocusGained();
+    // (*AppPlatform::_singleton)->_fireAppFocusGained();
     client->setRenderingSize(windowWidth, windowHeight);
     client->setUISizeAndScale(windowWidth, windowHeight, pixelSize);
 
