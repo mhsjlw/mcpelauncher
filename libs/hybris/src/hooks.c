@@ -1823,13 +1823,11 @@ int hybris_convert_addr_to_native(__const struct android_sockaddr *from_addr, st
 {
     sa_family_t family = hybris_convert_family_to_native(from_addr->sa_family);
     if (family == AF_INET) {
+        memcpy(to_addr, from_addr, sizeof(struct sockaddr_in));
         to_addr->sa_len = sizeof(struct sockaddr_in);
-        memcpy(&to_addr->sa_family, from_addr, sizeof(struct sockaddr_in) -
-                ((unsigned int) &to_addr->sa_family - (unsigned int) to_addr));
     } else if (family == AF_INET6) {
+        memcpy(to_addr, from_addr, sizeof(struct sockaddr_in6));
         to_addr->sa_len = sizeof(struct sockaddr_in6);
-        memcpy(&to_addr->sa_family, from_addr, sizeof(struct sockaddr_in6) -
-                ((unsigned int) &to_addr->sa_family - (unsigned int) to_addr));
     } else {
         printf("bionic_convert_addr_to_native: unsupported family\n");
         return 0;
@@ -1841,10 +1839,10 @@ int hybris_convert_addr_to_native(__const struct android_sockaddr *from_addr, st
 int hybris_convert_addr_from_native(__const struct sockaddr *from_addr, struct android_sockaddr *to_addr,
                                     size_t max_size)
 {
-    size_t size = from_addr->sa_len - ((unsigned int) &from_addr->sa_family - (unsigned int) from_addr);
+    size_t size = from_addr->sa_len;
     if (max_size < size)
         size = max_size;
-    memcpy(to_addr, &from_addr->sa_family, size);
+    memcpy(to_addr, from_addr, size);
     to_addr->sa_family = hybris_convert_family_from_native(from_addr->sa_family);
     return 1;
 }
@@ -1859,18 +1857,19 @@ struct android_addrinfo {
     struct	android_sockaddr *ai_addr;	/* binary address */
     struct	android_addrinfo *ai_next;	/* next structure in linked list */
 };
+
 struct android_addrinfo* convert_addrinfo(struct addrinfo* res) {
     struct android_addrinfo* ares = (struct android_addrinfo*) malloc(sizeof(struct android_addrinfo));
     ares->ai_flags = res->ai_flags;
-    ares->ai_family = res->ai_family;
+    ares->ai_family = hybris_convert_family_from_native(res->ai_family);
     ares->ai_socktype = res->ai_socktype;
     ares->ai_protocol = res->ai_protocol;
     ares->ai_addrlen = res->ai_addrlen;
     ares->ai_canonname = NULL; //res->ai_canonname;
-    size_t conv_addrlen = res->ai_addrlen -
-            ((unsigned int) &res->ai_addr->sa_family - (unsigned int) res->ai_addr);
+    size_t conv_addrlen = res->ai_addrlen;
     struct android_sockaddr *conv_addr = malloc(conv_addrlen);
     hybris_convert_addr_from_native(res->ai_addr, conv_addr, conv_addrlen);
+    ares->ai_addrlen = res->ai_addrlen;
     ares->ai_addr = conv_addr;
     ares->ai_next = NULL;
     if (res->ai_next != NULL) {
@@ -1880,12 +1879,12 @@ struct android_addrinfo* convert_addrinfo(struct addrinfo* res) {
 }
 
 int my_getaddrinfo(const char *node, const char *service,
-                const struct android_addrinfo *ahints,
-                struct android_addrinfo **ares) {
+                   const struct android_addrinfo *ahints,
+                   struct android_addrinfo **ares) {
     struct addrinfo hints;
     if (ahints != NULL) {
         hints.ai_flags = ahints->ai_flags;
-        hints.ai_family = ahints->ai_family;
+        hints.ai_family = hybris_convert_family_to_native(ahints->ai_family);
         hints.ai_socktype = ahints->ai_socktype;
         hints.ai_protocol = ahints->ai_protocol;
         hints.ai_addrlen = ahints->ai_addrlen;
@@ -1923,6 +1922,11 @@ void my_freeaddrinfo(struct android_addrinfo *ai) {
     }
 }
 
+int my_socket(int socket_family, int socket_type, int protocol) {
+    socket_family = hybris_convert_family_to_native(socket_family);
+    return socket(socket_family, socket_type, protocol);
+}
+
 int my_bind(int sockfd, const struct android_sockaddr *addr, socklen_t addrlen)
 {
     struct sockaddr *conv_addr = alloca(hybris_get_addr_size(addr));
@@ -1940,6 +1944,22 @@ ssize_t my_sendto(int socket, const void *buffer, size_t length, int flags,
     return sendto(socket, buffer, length, flags, conv_addr, dest_len);
 }
 
+ssize_t my_recvfrom(int sockfd, void *buf, size_t len, int flags,
+                    struct android_sockaddr *addr, socklen_t *addrlen)
+{
+    struct sockaddr_storage stor;
+    socklen_t ret_size = sizeof(stor);
+    int ret = recvfrom(sockfd, buf, len, flags, (struct sockaddr *) &stor, &ret_size);
+    printf("RECVFROM = %i\n", ret);
+    if (ret >= 0) {
+        //stor.ss_len = ret_size;
+        if (!hybris_convert_addr_from_native((struct sockaddr *) &stor, addr, *addrlen))
+            return -1;
+        *addrlen = ret_size - 1;
+    }
+    return ret;
+}
+
 int my_getsockname(int sockfd, struct android_sockaddr *addr, socklen_t *addrlen)
 {
     struct sockaddr_storage stor;
@@ -1955,7 +1975,23 @@ int my_getsockname(int sockfd, struct android_sockaddr *addr, socklen_t *addrlen
 }
 
 int my_fdatasync(int fildes) {
-  return fcntl(fildes, F_FULLFSYNC);
+    return fcntl(fildes, F_FULLFSYNC);
+}
+
+struct android_rlimit
+{
+    unsigned long int rlim_cur;
+    unsigned long int rlim_max;
+};
+
+int my_getrlimit(int resource, struct android_rlimit *rlim) {
+    if (resource == 7)
+        resource = RLIMIT_NOFILE;
+    struct rlimit os_rlim;
+    int ret = getrlimit(resource, &os_rlim);
+    rlim->rlim_cur = (unsigned long int) os_rlim.rlim_cur;
+    rlim->rlim_max = (unsigned long int) os_rlim.rlim_max;
+    return ret;
 }
 
 #define	A_NI_NOFQDN	0x00000001
@@ -2021,7 +2057,7 @@ static struct _hook hooks[] = {
     {"uname", uname },
     {"sched_yield", sched_yield},
     {"ldexp", ldexp},
-    {"getrlimit", getrlimit},
+    {"getrlimit", my_getrlimit},
     {"gettimeofday", gettimeofday},
     {"ioctl", ioctl},
     {"select", select},
@@ -2244,7 +2280,7 @@ static struct _hook hooks[] = {
     {"pthread_cond_timedwait_monotonic", my_pthread_cond_timedwait},
     // {"pthread_cond_timedwait_monotonic_np", my_pthread_cond_timedwait},
     // {"pthread_cond_timedwait_relative_np", my_pthread_cond_timedwait_relative_np},
-    // {"pthread_key_delete", pthread_key_delete},
+    {"pthread_key_delete", pthread_key_delete},
     // {"pthread_setname_np", pthread_setname_np},
     {"pthread_once", my_pthread_once},
     {"pthread_key_create", pthread_key_create},
@@ -2347,7 +2383,7 @@ static struct _hook hooks[] = {
     {"__errno", __error},
     {"__set_errno", my_set_errno},
     /* socket.h */
-    {"socket", socket},
+    {"socket", my_socket},
     {"socketpair", socketpair},
     {"bind", my_bind},
     {"getsockname", my_getsockname},
@@ -2356,7 +2392,7 @@ static struct _hook hooks[] = {
     {"send", send},
     {"recv", recv},
     {"sendto", my_sendto},
-    {"recvfrom", recvfrom},
+    {"recvfrom", my_recvfrom},
     {"sendmsg", sendmsg},
     // {"sendmmsg", sendmmsg},
     {"recvmsg", recvmsg},
