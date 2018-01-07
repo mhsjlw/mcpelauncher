@@ -47,7 +47,7 @@ void* loadLibraryOS(std::string path, const char** symbols) {
 }
 
 void* loadFmod(const char** symbols) {
-  void* handle = dlopen("libfmod.dylib", RTLD_LAZY);
+  void* handle = dlopen("./libs/native/libfmod.dylib", RTLD_LAZY);
   if (handle == nullptr) {
       printf("failed to load library: %s\n", dlerror());
       return nullptr;

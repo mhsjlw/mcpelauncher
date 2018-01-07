@@ -15,7 +15,9 @@
 #include <functional>
 #include <sys/mman.h>
 // #include <EGL/egl.h>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h> // GLFW
+
 #include <stdlib.h>
 #include <sys/stat.h>
 #include "symbols/gles_symbols.h"
@@ -64,6 +66,39 @@ void androidStub() {
 
 void eglStub() {
     std::cout << "warn: egl call\n";
+}
+
+void error_callback(int error, const char* description) {
+    fprintf(stderr, "Error: %s\n", description);
+}
+
+GLFWglproc stub_glfwGetProcAddress(const char* procname) {
+  printf("proc : %s\n", procname);
+  GLFWglproc addr = glfwGetProcAddress(procname);
+  return addr;
+}
+
+void stub_glVertexAttribPointer(GLuint index,
+  GLint size,
+  GLenum type,
+  GLboolean normalized,
+  GLsizei stride,
+  const GLvoid * pointer) {
+
+  printf("glVertexAttribPointer called\n");
+  glGenVertexArrays(0, NULL);
+
+  glVertexAttribPointer(index, size, type, normalized, stride, pointer);
+
+  GLenum err = glGetError();
+const char* error;
+  switch(err) {
+        case GL_INVALID_OPERATION:      error="INVALID_OPERATION";      break;
+        case GL_INVALID_ENUM:           error="INVALID_ENUM";           break;
+        case GL_INVALID_VALUE:          error="INVALID_VALUE";          break;
+        case GL_OUT_OF_MEMORY:          error="OUT_OF_MEMORY";          break;
+      }
+printf("error : %s\n", error);
 }
 
 std::unique_ptr<LinuxStore> createStoreHookFunc(const mcpe::string& idk, StoreListener& listener) {
@@ -384,6 +419,8 @@ int main(int argc, char *argv[]) {
   if (!glfwInit())
         return -1;
 
+    glfwSetErrorCallback(error_callback);
+
     if (argc == 3 && strcmp(argv[1], "extract") == 0) {
         ExtractHelper::extractApk(argv[2]);
         return 0;
@@ -480,7 +517,8 @@ int main(int argc, char *argv[]) {
     stubSymbols(egl_symbols, (void*) eglStub);
 
     // hybris_hook("eglGetProcAddress", (void*) eglGetProcAddress);
-    hybris_hook("eglGetProcAddress", (void*) glfwGetProcAddress);
+    hybris_hook("eglGetProcAddress", (void*) stub_glfwGetProcAddress);
+    // hybris_hook("glVertexAttribPointer", (void*) stub_glVertexAttribPointer);
     hybris_hook("mcpelauncher_hook", (void*) hookFunction);
     hookAndroidLog();
     if (!load_empty_library("libc.so") || !load_empty_library("libm.so"))
@@ -685,6 +723,11 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     glfwMakeContextCurrent(window);
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+      std::cout << "Failed to initialize GLAD" << std::endl;
+      return -1;
+    }
     // eglutInitWindowSize(windowWidth, windowHeight);
     // eglutInitAPIMask(EGLUT_OPENGL_ES2_BIT);
     // eglutInit(argc, argv);
@@ -757,9 +800,12 @@ int main(int argc, char *argv[]) {
     while (!glfwWindowShouldClose(window))
     {
         // glClear(GL_COLOR_BUFFER_BIT);
+        // glClearColor(1.0, 0.0, 0.0, 1.0);
+
+        minecraft_draw();
 
         /* Swap front and back buffers */
-        minecraft_draw();
+        // minecraft_draw();
         glfwSwapBuffers(window);
 
         /* Poll for and process events */

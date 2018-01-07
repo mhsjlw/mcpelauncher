@@ -1,3 +1,0 @@
-#!/bin/bash
-
-env DYLD_LIBRARY_PATH="./ext:$DYLD_LIBRARY_PATH" /Applications/Xcode.app/Contents/Developer/usr/bin/lldb ./mcpelauncher

@@ -1,4 +1,0 @@
-#!/bin/bash
-
-# HYBRIS_LINKER_DEBUG=3
-DYLD_LIBRARY_PATH=./ext:${DYLD_LIBRARY_PATH} ./mcpelauncher $@
