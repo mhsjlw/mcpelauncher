@@ -13,8 +13,8 @@ set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -m32")
 # LibZip 'requires' BZip2 for BZip2 decompression, but we don't use that
 # Therefore, it is safe to ignore these linker errors and continue building
 # _BZ2_bzCompress,_BZ2_bzCompressEnd,_BZ2_bzCompress,_BZ2_bzCompressEnd,_BZ2_bzCompressInit,_BZ2_bzDecompress,_BZ2_bzDecompressEnd,_BZ2_bzDecompressInit
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -undefined dynamic_lookup -Wno-unused-command-line-argument")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -undefined dynamic_lookup -Wno-unused-command-line-argument")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32 -Wl,-U,_BZ2_bzCompress -Wl,-U,_BZ2_bzCompressEnd -Wl,-U,_BZ2_bzCompress -Wl,-U,_BZ2_bzCompressEnd -Wl,-U,_BZ2_bzCompressInit -Wl,-U,_BZ2_bzDecompress -Wl,-U,_BZ2_bzDecompressEnd -Wl,-U,_BZ2_bzDecompressInit -Wno-unused-command-line-argument")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32 -Wl,-U,_BZ2_bzCompress -Wl,-U,_BZ2_bzCompressEnd -Wl,-U,_BZ2_bzCompress -Wl,-U,_BZ2_bzCompressEnd -Wl,-U,_BZ2_bzCompressInit -Wl,-U,_BZ2_bzDecompress -Wl,-U,_BZ2_bzDecompressEnd -Wl,-U,_BZ2_bzDecompressInit -Wno-unused-command-line-argument")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
 set(CMAKE_LINK_FLAGS "${CMAKE_LINK_FLAGS} -m32")
