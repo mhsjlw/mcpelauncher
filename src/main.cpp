@@ -382,6 +382,28 @@ xbox::services::xbox_live_result<void> xblLogCLL(void* th, mcpe::string const& a
     ret.message = " ";
     return ret;
 }
+
+
+std::map<void*, GLuint> vertexArrs;
+
+static void (*reflectShaderUniformsOriginal)(void*);
+void reflectShaderUniformsHook(void* th) {
+    GLuint vertexArr;
+    glGenVertexArrays(1, &vertexArr);
+    glBindVertexArray(vertexArr);
+    vertexArrs[th] = vertexArr;
+    reflectShaderUniformsOriginal(th);
+}
+static void (*bindVertexArrayOriginal)(void*, void*, void*);
+void bindVertexArrayHook(void* th, void* a, void* b) {
+    glBindVertexArray(vertexArrs[th]);
+    bindVertexArrayOriginal(th, a, b);
+}
+
+bool supportsImmediateModeHook() {
+    return false;
+}
+
 //
 // static int XErrorHandlerImpl(Display* display, XErrorEvent* event) {
 //     std::cerr << "X error received: "
@@ -627,6 +649,21 @@ int main(int argc, char *argv[]) {
 
     patchOff = (unsigned int) hybris_dlsym(handle, "_ZN4xbox8services12java_interop7log_cllERKSsS3_S3_");
     patchCallInstruction((void*) patchOff, (void*) &xblLogCLL, true);
+
+    reflectShaderUniformsOriginal = (void (*)(void*)) hybris_dlsym(handle, "_ZN3mce9ShaderOGL21reflectShaderUniformsEv");
+    patchOff = (unsigned int) hybris_dlsym(handle, "_ZN3mce9ShaderOGLC2ERKSsRNS_13ShaderProgramES4_S4_") + (0xEB62 - 0xEAD0);
+    patchCallInstruction((void*) patchOff, (void*) &reflectShaderUniformsHook, false);
+
+    bindVertexArrayOriginal = (void (*)(void*, void*, void*)) hybris_dlsym(handle, "_ZN3mce9ShaderOGL18bindVertexPointersERKNS_12VertexFormatEPv");
+    patchOff = (unsigned int) hybris_dlsym(handle, "_ZN3mce9ShaderOGL10bindShaderERNS_13RenderContextERKNS_12VertexFormatEPvj") + (0xEA5 - 0xE40);
+    patchCallInstruction((void*) patchOff, (void*) &bindVertexArrayHook, false);
+
+    patchOff = (unsigned int) hybris_dlsym(handle, "_ZN2gl21supportsImmediateModeEv");
+    patchCallInstruction((void*) patchOff, (void*) &supportsImmediateModeHook, true);
+
+    patchOff = (unsigned int) hybris_dlsym(handle, "_ZNK3mce9BufferOGL10bindBufferERNS_13RenderContextE");
+    ((unsigned char*) patchOff)[0x2C] = 0x90;
+    ((unsigned char*) patchOff)[0x2D] = 0x90;
 
     char* shaderVersionPatch = (char*) (libBase + 0x32BB4C8);
     strcpy(shaderVersionPatch, "#version 410\n");
