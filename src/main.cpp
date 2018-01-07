@@ -167,11 +167,11 @@ static void minecraft_idle() {
 }
 
 static void minecraft_draw() {
-    // platform->runOnMainThreadMutex.lock();
-    // auto queue = std::move(platform->runOnMainThreadQueue);
-    // platform->runOnMainThreadMutex.unlock();
-    // for (auto const& func : queue)
-    //     func();
+    platform->runOnMainThreadMutex.lock();
+    auto queue = std::move(platform->runOnMainThreadQueue);
+    platform->runOnMainThreadMutex.unlock();
+    for (auto const& func : queue)
+        func();
     client->update();
 }
 

@@ -8,6 +8,7 @@
 #include <mutex>
 #include <memory>
 #include "minecraft/gl.h"
+#include "minecraft/function.h"
 #include "minecraft/AppPlatform.h"
 #include "minecraft/ImagePickingCallback.h"
 #include "path_helper.h"
@@ -40,7 +41,7 @@ public:
 
     std::string assetsDir, dataDir;
 
-    std::vector<std::function<void ()>> runOnMainThreadQueue;
+    std::vector<mcpe::function<void ()>> runOnMainThreadQueue;
     std::mutex runOnMainThreadMutex;
 
     LinuxAppPlatform();
@@ -165,7 +166,7 @@ public:
         return ret;
     }
 
-    void queueForMainThread(std::function<void ()> f) {
+    void queueForMainThread(mcpe::function<void ()> f) {
         runOnMainThreadMutex.lock();
         runOnMainThreadQueue.push_back(f);
         runOnMainThreadMutex.unlock();
