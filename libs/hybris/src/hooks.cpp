@@ -28,4 +28,5 @@ extern "C" int my_pthread_once(void *once_control, void (*init_routine)(void)) {
     lock.unlock();
     pthread_once(once_control_r.get(), init_routine);
   }
+  return 0;
 }
