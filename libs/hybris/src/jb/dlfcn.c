@@ -59,27 +59,16 @@ static void set_dlerror(int err)
 void *android_dlopen(const char *filename, int flag)
 {
     soinfo *ret;
-
-    printf("before the lock\n");
     pthread_mutex_lock(&dl_lock);
-    printf("after the lock\n");
-
     ret = find_library(filename);
-
-    printf("after find library\n");
-
     if (unlikely(ret == NULL)) {
-        printf("DLL ERROR !!\n");
         set_dlerror(DL_ERR_CANNOT_LOAD_LIBRARY);
     } else {
-        printf("call constructors recursive\n");
         call_constructors_recursive(ret);
         ret->refcount++;
     }
 
-    printf("before the unlock\n");
     pthread_mutex_unlock(&dl_lock);
-    printf("after the unlock\n");
     return ret;
 }
 

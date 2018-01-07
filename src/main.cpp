@@ -11,13 +11,10 @@
 #include <dirent.h>
 #include <fstream>
 #include <codecvt>
-// #include <X11/Xlib.h>
 #include <functional>
 #include <sys/mman.h>
-// #include <EGL/egl.h>
 #include <glad/glad.h>
-#include <GLFW/glfw3.h> // GLFW
-
+#include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include "symbols/gles_symbols.h"
@@ -52,12 +49,9 @@
 #endif
 
 extern "C" {
-
-// #include <eglut.h>
 #include "../hybris/include/hybris/dlfcn.h"
 #include "../hybris/include/hybris/hook.h"
 #include "../hybris/src/jb/linker.h"
-
 }
 
 void androidStub() {
@@ -70,35 +64,6 @@ void eglStub() {
 
 void error_callback(int error, const char* description) {
     fprintf(stderr, "Error: %s\n", description);
-}
-
-GLFWglproc stub_glfwGetProcAddress(const char* procname) {
-  printf("proc : %s\n", procname);
-  GLFWglproc addr = glfwGetProcAddress(procname);
-  return addr;
-}
-
-void stub_glVertexAttribPointer(GLuint index,
-  GLint size,
-  GLenum type,
-  GLboolean normalized,
-  GLsizei stride,
-  const GLvoid * pointer) {
-
-  printf("glVertexAttribPointer called\n");
-  glGenVertexArrays(0, NULL);
-
-  glVertexAttribPointer(index, size, type, normalized, stride, pointer);
-
-  GLenum err = glGetError();
-const char* error;
-  switch(err) {
-        case GL_INVALID_OPERATION:      error="INVALID_OPERATION";      break;
-        case GL_INVALID_ENUM:           error="INVALID_ENUM";           break;
-        case GL_INVALID_VALUE:          error="INVALID_VALUE";          break;
-        case GL_OUT_OF_MEMORY:          error="OUT_OF_MEMORY";          break;
-      }
-printf("error : %s\n", error);
 }
 
 std::unique_ptr<LinuxStore> createStoreHookFunc(const mcpe::string& idk, StoreListener& listener) {
@@ -140,30 +105,36 @@ static MinecraftGame* client;
 static LinuxAppPlatform* platform;
 
 GLFWwindow* window;
-// int winId = 0;
 bool moveMouseToCenter = false;
+int relativeScale = 1;
+
+int getRelativeScale(GLFWwindow* window) {
+  int fx, fy;
+  glfwGetFramebufferSize(window, &fx, &fy);
+
+  int wx, wy;
+  glfwGetWindowSize(window, &wx, &wy);
+
+  return (int) floor(((fx / wx) + (fy / wy)) / 2);
+}
 
 static void minecraft_idle() {
     if (client->wantToQuit()) {
         delete client;
         glfwDestroyWindow(window);
         glfwTerminate();
-        // eglutDestroyWindow(winId);
-        // eglutFini();
         return;
     }
+
     int cx, cy;
-    glfwGetWindowSize(window, &cx, &cy);
+    glfwGetFramebufferSize(window, &cx, &cy);
     cx /= 2;
     cy /= 2;
 
     if (moveMouseToCenter) {
-        std::cout << "i was told to move mouse to center, i ignored it\n";
-        glfwSetCursorPos(window, (double)cx, (double)cy);
-        // eglutWarpMousePointer(cx, cy);
+        glfwSetCursorPos(window, (double) cx, (double) cy);
         moveMouseToCenter = false;
     }
-    // glfwSwapBuffers(window);
 }
 
 static void minecraft_draw() {
@@ -177,26 +148,34 @@ static void minecraft_draw() {
 
 float pixelSize = 2.f;
 int oldw = -1, oldh = -1;
+
+// These are framebuffer sizes to ensure that it works on retina displays
 static void minecraft_reshape(GLFWwindow* window, int w, int h) {
     if (oldw == w && oldh == h)
         return;
+
     oldw = w;
     oldh = h;
     client->setRenderingSize(w, h);
     client->setUISizeAndScale(w, h, pixelSize);
 }
+
 static void minecraft_mouse(GLFWwindow* window, double x, double y) {
+    double xr = x * relativeScale;
+    double yr = y * relativeScale;
+
     if (LinuxAppPlatform::mousePointerHidden) {
         int cx, cy;
         glfwGetWindowSize(window, &cx, &cy);
         cx /= 2;
         cy /= 2;
-        if (x != cy || y != cy) {
-            Mouse::feed(0, 0, x, y, x - cx, y - cy);//FIXME is this slow MOUSE
+
+        if (xr != cy || yr != cy) {
+            Mouse::feed(0, 0, xr, yr, xr - cx, yr - cy);
             moveMouseToCenter = true;
         }
     } else {
-        Mouse::feed(0, 0, x, y, 0, 0);
+        Mouse::feed(0, 0, xr, yr, 0, 0);
     }
 }
 
@@ -383,7 +362,6 @@ xbox::services::xbox_live_result<void> xblLogCLL(void* th, mcpe::string const& a
     return ret;
 }
 
-
 std::map<void*, GLuint> vertexArrs;
 
 static void (*reflectShaderUniformsOriginal)(void*);
@@ -403,21 +381,6 @@ void bindVertexArrayHook(void* th, void* a, void* b) {
 bool supportsImmediateModeHook() {
     return false;
 }
-
-//
-// static int XErrorHandlerImpl(Display* display, XErrorEvent* event) {
-//     std::cerr << "X error received: "
-//               << "type " << event->type << ", "
-//               << "serial " << event->serial << ", "
-//               << "error_code " << static_cast<int>(event->error_code) << ", "
-//               << "request_code " << static_cast<int>(event->request_code) << ", "
-//               << "minor_code " << static_cast<int>(event->minor_code);
-//     return 0;
-// }
-
-// static int XIOErrorHandlerImpl(Display* display) {
-//     return 0;
-// }
 
 template <typename T>
 void* magicast(T whatever) {
@@ -447,10 +410,6 @@ int main(int argc, char *argv[]) {
         ExtractHelper::extractApk(argv[2]);
         return 0;
     }
-
-
-    // XSetErrorHandler(XErrorHandlerImpl);
-    // XSetIOErrorHandler(XIOErrorHandlerImpl);
 
 #ifndef DISABLE_CEF
     BrowserApp::RegisterRenderProcessHandler<InitialSetupRenderHandler>();
@@ -527,24 +486,19 @@ int main(int argc, char *argv[]) {
     setenv("LC_ALL", "C", 1); // HACK: Force set locale to one recognized by MCPE so that the outdated C++ standard library MCPE uses doesn't fail to find one
 
     std::cout << "loading native libraries\n";
-    // void* glesLib = loadLibraryOS("libGLESv2.so.2", gles_symbols);
     void* fmodLib = loadFmod(fmod_symbols);
-    // void* fmodLib = loadLibraryOS(PathHelper::findDataFile("libfmod").c_str(), fmod_symbols);
     void* libmLib = loadLibraryOS("libm.dylib", libm_symbols);
-    //glesLib == nullptr ||
     if (fmodLib == nullptr || libmLib == nullptr)
         return -1;
     std::cout << "loading hybris libraries\n";
     stubSymbols(android_symbols, (void*) androidStub);
     stubSymbols(egl_symbols, (void*) eglStub);
-
-    // hybris_hook("eglGetProcAddress", (void*) eglGetProcAddress);
-    hybris_hook("eglGetProcAddress", (void*) stub_glfwGetProcAddress);
-    // hybris_hook("glVertexAttribPointer", (void*) stub_glVertexAttribPointer);
+    hybris_hook("eglGetProcAddress", (void*) glfwGetProcAddress);
     hybris_hook("mcpelauncher_hook", (void*) hookFunction);
     hookAndroidLog();
     if (!load_empty_library("libc.so") || !load_empty_library("libm.so"))
         return -1;
+
     // load stub libraries
     if (!load_empty_library("libandroid.so") || !load_empty_library("liblog.so") || !load_empty_library("libEGL.so") || !load_empty_library("libGLESv2.so")|| !load_empty_library("libOpenSLES.so") || !load_empty_library("libfmod.so") || !load_empty_library("libGLESv1_CM.so"))
         return -1;
@@ -552,16 +506,13 @@ int main(int argc, char *argv[]) {
         return -1;
     std::cout << "loading MCPE\n";
     std::string mcpePath = PathHelper::findDataFile("libs/libminecraftpe.so");
-    std::cout << "yo boi got me a " << mcpePath << "\n";
     void* handle = hybris_dlopen(mcpePath.c_str(), RTLD_LAZY);
-    std::cout << "yep , right after dlopen\n";
     if (handle == nullptr) {
         std::cout << "failed to load MCPE: " << hybris_dlerror() << "\n";
         return -1;
     }
-    std::cout << "adding hook boi\n";
+
     addHookLibrary(handle, mcpePath);
-    std::cout << "added hooks boi !!! \n";
 
     unsigned int libBase = ((soinfo*) handle)->base;
     std::cout << "loaded MCPE (at " << libBase << ")\n";
@@ -753,9 +704,7 @@ int main(int argc, char *argv[]) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     window = glfwCreateWindow(windowWidth, windowHeight, "Minecraft", NULL, NULL);
-    if (!window)
-    {
-      std::cout << "no window -- boi\n";
+    if (!window) {
         glfwTerminate();
         return -1;
     }
@@ -765,13 +714,10 @@ int main(int argc, char *argv[]) {
       std::cout << "Failed to initialize GLAD" << std::endl;
       return -1;
     }
-    // eglutInitWindowSize(windowWidth, windowHeight);
-    // eglutInitAPIMask(EGLUT_OPENGL_ES2_BIT);
-    // eglutInit(argc, argv);
 
-    // winId = eglutCreateWindow("Minecraft", PathHelper::getIconPath().c_str());
+    relativeScale = getRelativeScale(window);
 
-    // init MinecraftGame
+    // Init MinecraftGame
     App::App_init = (void (*)(App*, AppContext&)) hybris_dlsym(handle, "_ZN3App4initER10AppContext");
     MinecraftGame::MinecraftGame_construct = (void (*)(MinecraftGame*, int, char**)) hybris_dlsym(handle, "_ZN13MinecraftGameC2EiPPc");
     MinecraftGame::MinecraftGame_destruct = (void (*)(MinecraftGame*)) hybris_dlsym(handle, "_ZN13MinecraftGameD2Ev");
@@ -797,15 +743,12 @@ int main(int argc, char *argv[]) {
       std::cout << "fullscreen\n";
       glfwDestroyWindow(window);
       window = glfwCreateWindow(windowWidth, windowHeight, "Minecraft", glfwGetPrimaryMonitor(), NULL);
-      if (!window)
-      {
-        std::cout << "no window -- boi\n";
+      if (!window) {
           glfwTerminate();
           return -1;
       }
       glfwMakeContextCurrent(window);
     }
-        // eglutToggleFullscreen();
 
     for (void* mod : mods) {
         void (*initFunc)(MinecraftGame*) = (void (*)(MinecraftGame*)) hybris_dlsym(mod, "mod_set_minecraft");
@@ -813,11 +756,12 @@ int main(int argc, char *argv[]) {
             initFunc(client);
     }
 
-    glfwSetWindowSizeCallback(window, minecraft_reshape);
+    glfwSetFramebufferSizeCallback(window, minecraft_reshape);
     glfwSetCursorPosCallback(window, minecraft_mouse);
     glfwSetMouseButtonCallback(window, minecraft_mouse_button);
     glfwSetKeyCallback(window, minecraft_key);
     glfwSetCharModsCallback(window, minecraft_keyboard);
+    // glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     // eglutIdleFunc(minecraft_idle);
     // eglutReshapeFunc(minecraft_reshape);
     // eglutDisplayFunc(minecraft_draw);
@@ -829,36 +773,21 @@ int main(int argc, char *argv[]) {
     // eglutCloseWindowFunc(minecraft_close);
     std::cout << "initialized display\n";
 
-    // init
-    // (*AppPlatform::_singleton)->_fireAppFocusGained();
-    client->setRenderingSize(windowWidth, windowHeight);
-    client->setUISizeAndScale(windowWidth, windowHeight, pixelSize);
+    int renderWidth, renderHeight;
+    glfwGetFramebufferSize(window, &renderWidth, &renderHeight);
+    client->setRenderingSize(renderWidth, renderHeight);
+    client->setUISizeAndScale(renderWidth, renderHeight, pixelSize);
 
-    while (!glfwWindowShouldClose(window))
-    {
-        // glClear(GL_COLOR_BUFFER_BIT);
-        // glClearColor(1.0, 0.0, 0.0, 1.0);
-
+    while (!glfwWindowShouldClose(window)) {
         minecraft_draw();
-
-        /* Swap front and back buffers */
-        // minecraft_draw();
         glfwSwapBuffers(window);
 
-        /* Poll for and process events */
         glfwPollEvents();
-        // minecraft_mouse();
-        // minecraft_mouse_button();
-        // minecraft_keyboard();
-        // minecraft_keyboard_special();
-        // minecraft_pase();
-
         minecraft_idle();
     }
-    minecraft_close(); //glfw will close , call the callback
-    // eglutMainLoop();
+    minecraft_close();
 
-    // this is an ugly hack to workaround the close app crashes MCPE causes
+    // This is an ugly hack to workaround the close app crashes MCPE causes
     patchOff = (unsigned int) hybris_dlsym(handle, "_ZN9TaskGroupD2Ev");
     patchCallInstruction((void*) patchOff, (void*) &workerPoolDestroy, true);
     patchOff = (unsigned int) hybris_dlsym(handle, "_ZN10WorkerPoolD2Ev");

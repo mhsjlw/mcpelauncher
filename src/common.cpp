@@ -27,7 +27,6 @@ bool loadLibrary(std::string path) {
 }
 
 void* loadLibraryOS(std::string path, const char** symbols) {
-  printf("YO, IT'S HERE, EH : %s\n", path.c_str());
     void* handle = dlopen(path.c_str(), RTLD_LAZY);
     if (handle == nullptr) {
         printf("failed to load library %s: %s\n", path.c_str(), dlerror());
