@@ -193,7 +193,7 @@ static void minecraft_mouse_scroll(GLFWwindow* window, double xoff, double yoff)
 }
 
 int getKeyMinecraft(int keyCode) {
-  return 0;
+/*
     if (keyCode == 65505)
         return 16;
     if (keyCode >= 97 && keyCode <= 122)
@@ -202,7 +202,7 @@ int getKeyMinecraft(int keyCode) {
         return (keyCode + 37 - 65361);
     if (keyCode >= 65470 && keyCode <= 65481)
         return (keyCode + 112 - 65470);
-
+*/
     return keyCode;
 }
 static void minecraft_keyboard(GLFWwindow* window, unsigned int codepoint, int mods) {
@@ -228,30 +228,19 @@ static void minecraft_keyboard(GLFWwindow* window, unsigned int codepoint, int m
 }
 
 static void minecraft_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  // Keyboard::Keyboard_feedText()
-}
-
-bool modCTRL = false;
-static void minecraft_keyboard_special(int key, int action) {
-    // if (key == 65507)
-    //     modCTRL = (action != EGLUT_KEY_RELEASE);
-    // if (modCTRL && (key == 86 || key == 118) && action == EGLUT_KEY_PRESS) {
-    //     // eglutRequestPaste();
-    // }
-    // if (key == 65480) {
-    //     if (action == EGLUT_KEY_PRESS) {
-    //         client->getPrimaryUserOptions()->setFullscreen(!client->getPrimaryUserOptions()->getFullscreen());
-    //     }
-    //     return;
-    // }
-    // int mKey = getKeyMinecraft(key);
-    // if (action == EGLUT_KEY_PRESS) {
-    //     Keyboard::Keyboard_feed((unsigned char) mKey, 1);
+    if (key == GLFW_KEY_F11) {
+         if (action == GLFW_PRESS)
+             client->getPrimaryUserOptions()->setFullscreen(!client->getPrimaryUserOptions()->getFullscreen());
+         return;
+    }
+    int mKey = getKeyMinecraft(key);
+    if (action == GLFW_PRESS) {
+         Keyboard::Keyboard_feed((unsigned char) mKey, 1);
     //     //Keyboard::states[mKey] = 1;
-    // } else if (action == EGLUT_KEY_RELEASE) {
-    //     Keyboard::Keyboard_feed((unsigned char) mKey, 0);
+    } else if (action == GLFW_RELEASE) {
+         Keyboard::Keyboard_feed((unsigned char) mKey, 0);
     //     //Keyboard::states[mKey] = 0;
-    // }
+    }
 }
 static void minecraft_paste(const char* str, int len) {
     // for (int i = 0; i < len; i++) {
