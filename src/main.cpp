@@ -193,6 +193,10 @@ static void minecraft_mouse_scroll(GLFWwindow* window, double xoff, double yoff)
 }
 
 int getKeyMinecraft(int keyCode) {
+    if (keyCode == GLFW_KEY_ESCAPE)
+        return 27;
+    if (keyCode == GLFW_KEY_LEFT_SHIFT)
+        return 16;
 /*
     if (keyCode == 65505)
         return 16;
