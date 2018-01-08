@@ -26,6 +26,8 @@ void* magicast(T whatever) {
 
 #include "../hybris/include/hybris/dlfcn.h"
 
+void minecraft_set_cursor_hidden(bool hidden);
+
 void** LinuxAppPlatform::myVtable = nullptr;
 bool LinuxAppPlatform::mousePointerHidden = false;
 bool enablePocketGuis = false;
@@ -113,12 +115,11 @@ void LinuxAppPlatform::initVtable(void* lib) {
 
 void LinuxAppPlatform::hideMousePointer() {
     mousePointerHidden = true;
-    moveMouseToCenter = true;
-    // eglutSetMousePointerVisiblity(EGLUT_POINTER_INVISIBLE);
+    minecraft_set_cursor_hidden(true);
 }
 void LinuxAppPlatform::showMousePointer() {
     mousePointerHidden = false;
-    // eglutSetMousePointerVisiblity(EGLUT_POINTER_VISIBLE);
+    minecraft_set_cursor_hidden(false);
 }
 
 std::string LinuxAppPlatform::_pickFile(std::string commandLine) {

@@ -21,7 +21,6 @@ class ImagePickingCallback;
 class FilePickerSettings;
 
 extern bool enablePocketGuis;
-extern bool moveMouseToCenter;
 
 class LinuxAppPlatform : public AppPlatform {
 

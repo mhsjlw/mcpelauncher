@@ -105,7 +105,6 @@ static MinecraftGame* client;
 static LinuxAppPlatform* platform;
 
 GLFWwindow* window;
-bool moveMouseToCenter = false;
 int relativeScale = 1;
 
 int getRelativeScale(GLFWwindow* window) {
@@ -130,11 +129,6 @@ static void minecraft_idle() {
     glfwGetFramebufferSize(window, &cx, &cy);
     cx /= 2;
     cy /= 2;
-
-    if (moveMouseToCenter) {
-        glfwSetCursorPos(window, (double) cx, (double) cy);
-        moveMouseToCenter = false;
-    }
 }
 
 static void minecraft_draw() {
@@ -160,20 +154,25 @@ static void minecraft_reshape(GLFWwindow* window, int w, int h) {
     client->setUISizeAndScale(w, h, pixelSize);
 }
 
+double lastCursorX = 0, lastCursorY = 0;
+
+void minecraft_set_cursor_hidden(bool hidden) {
+    if (hidden) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
+    } else {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+}
+
 static void minecraft_mouse(GLFWwindow* window, double x, double y) {
     double xr = x * relativeScale;
     double yr = y * relativeScale;
 
     if (LinuxAppPlatform::mousePointerHidden) {
-        int cx, cy;
-        glfwGetWindowSize(window, &cx, &cy);
-        cx /= 2;
-        cy /= 2;
-
-        if (xr != cy || yr != cy) {
-            Mouse::feed(0, 0, xr, yr, xr - cx, yr - cy);
-            moveMouseToCenter = true;
-        }
+        Mouse::feed(0, 0, xr, yr, xr - lastCursorX, yr - lastCursorY);
+	lastCursorX = x;
+	lastCursorY = y;
     } else {
         Mouse::feed(0, 0, xr, yr, 0, 0);
     }
