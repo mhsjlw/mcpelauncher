@@ -159,7 +159,7 @@ double lastCursorX = 0, lastCursorY = 0;
 void minecraft_set_cursor_hidden(bool hidden) {
     if (hidden) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-	glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
+        glfwGetCursorPos(window, &lastCursorX, &lastCursorY);
     } else {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
@@ -171,19 +171,25 @@ static void minecraft_mouse(GLFWwindow* window, double x, double y) {
 
     if (LinuxAppPlatform::mousePointerHidden) {
         Mouse::feed(0, 0, xr, yr, xr - lastCursorX, yr - lastCursorY);
-	lastCursorX = x;
-	lastCursorY = y;
+        lastCursorX = x;
+        lastCursorY = y;
     } else {
         Mouse::feed(0, 0, xr, yr, 0, 0);
     }
 }
 
-
 static void minecraft_mouse_button(GLFWwindow* window, int btn, int action, int mods) {
-  double x,y;
-  glfwGetCursorPos(window, &x, &y);
-  int mcBtn = (btn == GLFW_MOUSE_BUTTON_1 ? 1 : (btn == GLFW_MOUSE_BUTTON_2 ? 3 : (btn == GLFW_MOUSE_BUTTON_3 ? 2 : (btn == GLFW_MOUSE_BUTTON_5 ? 4 : btn))));
-  Mouse::feed((char) mcBtn, (char) (action == GLFW_PRESS ? (btn == GLFW_MOUSE_BUTTON_5 ? -120 : (btn == GLFW_MOUSE_BUTTON_4 ? 120 : 1)) : 0), x, y, 0, 0);
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    int mcBtn = (btn == GLFW_MOUSE_BUTTON_1 ? 1 : (btn == GLFW_MOUSE_BUTTON_2 ? 2 : (btn == GLFW_MOUSE_BUTTON_3 ? 3 : btn)));
+    Mouse::feed((char) mcBtn, (action == GLFW_RELEASE ? 0 : 1), x, y, 0, 0);
+}
+
+static void minecraft_mouse_scroll(GLFWwindow* window, double xoff, double yoff) {
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    char mcYOff = (char) std::max(std::min(yoff * 20.0, 127.0), -127.0);
+    Mouse::feed(4, mcYOff, x, y, 0, 0);
 }
 
 int getKeyMinecraft(int keyCode) {
@@ -758,6 +764,7 @@ int main(int argc, char *argv[]) {
     glfwSetFramebufferSizeCallback(window, minecraft_reshape);
     glfwSetCursorPosCallback(window, minecraft_mouse);
     glfwSetMouseButtonCallback(window, minecraft_mouse_button);
+    glfwSetScrollCallback(window, minecraft_mouse_scroll);
     glfwSetKeyCallback(window, minecraft_key);
     glfwSetCharModsCallback(window, minecraft_keyboard);
     // glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
