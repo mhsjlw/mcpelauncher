@@ -1994,6 +1994,12 @@ int my_getrlimit(int resource, struct android_rlimit *rlim) {
     return ret;
 }
 
+int my_clock_gettime(clockid_t clk_id, struct timespec *tp) {
+    if (clk_id == 1)
+        clk_id = CLOCK_MONOTONIC;
+    return clock_gettime(clk_id, tp);
+}
+
 #define	A_NI_NOFQDN	0x00000001
 #define	A_NI_NUMERICHOST	0x00000002
 #define	A_NI_NAMEREQD	0x00000004
@@ -2596,7 +2602,7 @@ static struct _hook hooks[] = {
     // {"dysize", dysize},
     {"nanosleep", nanosleep},
     {"clock_getres", clock_getres},
-    {"clock_gettime", clock_gettime},
+    {"clock_gettime", my_clock_gettime},
     {"clock_settime", clock_settime},
     // {"clock_nanosleep", clock_nanosleep},
     // {"clock_getcpuclockid", clock_getcpuclockid},
