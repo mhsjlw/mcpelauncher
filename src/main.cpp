@@ -170,7 +170,7 @@ static void minecraft_mouse(GLFWwindow* window, double x, double y) {
     double yr = y * relativeScale;
 
     if (LinuxAppPlatform::mousePointerHidden) {
-        Mouse::feed(0, 0, xr, yr, xr - lastCursorX, yr - lastCursorY);
+        Mouse::feed(0, 0, xr, yr, xr - (lastCursorX * relativeScale), yr - (lastCursorY * relativeScale));
         lastCursorX = x;
         lastCursorY = y;
     } else {

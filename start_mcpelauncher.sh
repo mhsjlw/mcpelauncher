@@ -5,7 +5,7 @@ DIR=`pwd`
 cd $DIR
 
 # You must have built from ./build! I'll fix this later!
-./build/mcpelauncher
+./build/mcpelauncher $@
 
 # https://stackoverflow.com/questions/59895/getting-the-source-directory-of-a-bash-script-from-within/246128#246128
 # SOURCE="${BASH_SOURCE[0]}"
