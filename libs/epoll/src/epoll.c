@@ -333,9 +333,11 @@ epoll_pwait(
 int
 epoll_wait(int fd, struct epoll_event *ev, int cnt, int to)
 {
-	if (cnt < 1 || cnt > 32) {
+	if (cnt < 1) {
 		errno = EINVAL;
 		return -1;
+	} else if (cnt > 32) {
+		cnt = 32;
 	}
 
 	if (poll_fd != -1 && fd == poll_epoll_fd) {
