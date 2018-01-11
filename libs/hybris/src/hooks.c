@@ -1548,6 +1548,25 @@ struct open_redirect open_redirects[] = {
 	{ NULL, NULL }
 };
 
+int convert_fd_flags_to_native(int flags)
+{
+    int ret = flags & 4;
+    if (flags & 0100) ret |= O_CREAT;
+    if (flags & 0200) ret |= O_EXCL;
+    if (flags & 01000) ret |= O_TRUNC;
+    if (flags & 02000) ret |= O_APPEND;
+    if (flags & 04000) ret |= O_NONBLOCK;
+    return ret;
+}
+
+int convert_fd_flags_from_native(int flags)
+{
+    int ret = flags & 4;
+    if (flags & O_CREAT)
+        ret |= 0100;
+    return ret;
+}
+
 int my_open(const char *pathname, int flags, ...)
 {
 	va_list ap;
@@ -1565,13 +1584,14 @@ int my_open(const char *pathname, int flags, ...)
 		}
 	}
 
-	if (flags & O_CREAT) {
+        flags = convert_fd_flags_to_native(flags);
+
+        if (flags & O_CREAT) {
 		va_start(ap, flags);
 		mode = va_arg(ap, mode_t);
 		va_end(ap);
 	}
 
-    printf("open %s\n", pathname);
 	return open(target_path, flags, mode);
 }
 
@@ -1640,6 +1660,44 @@ int my_fstat64(int fd, struct bionic_stat64 *s)
     struct stat tmp;
     int ret = fstat(fd, &tmp);
     stat_to_bionic_stat(&tmp, s);
+    return ret;
+}
+
+struct android_flock {
+    short l_type;
+    short l_whence;
+    long l_start;
+    long l_len;
+    long l_sysid;
+    int l_pid;
+    long pad[4];
+};
+
+int my_fcntl(int fd, int cmd, ...)
+{
+    int ret = -1;
+    va_list ap;
+    va_start(ap, cmd);
+    if (cmd == 2) {
+        int flags = va_arg(ap, int);
+        ret = fcntl(fd, F_SETFD, flags);
+    } else if (cmd == 4) {
+        int flags = va_arg(ap, int);
+        ret = fcntl(fd, F_SETFL, convert_fd_flags_to_native(flags));
+    } else if (cmd == 6) {
+        struct android_flock* afl = va_arg(ap, struct android_flock*);
+        struct flock fl;
+        memset(&fl, 0, sizeof(fl));
+        fl.l_type = afl->l_type;
+        fl.l_whence = afl->l_whence;
+        fl.l_start = afl->l_start;
+        fl.l_len = afl->l_len;
+        fl.l_pid = afl->l_pid;
+        ret = fcntl(fd, F_SETLK, &fl);
+    } else {
+        printf("unsupported fcntl %i\n", cmd);
+    }
+    va_end(ap);
     return ret;
 }
 
@@ -2460,7 +2518,7 @@ static struct _hook hooks[] = {
     {"gmtime", gmtime},
     {"abort", abort},
     {"writev", writev},
-    {"fcntl", fcntl},
+    {"fcntl", my_fcntl},
     /* unistd.h */
     {"access", access},
     {"lseek", lseek},
