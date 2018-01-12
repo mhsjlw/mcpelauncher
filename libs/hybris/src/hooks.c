@@ -2036,6 +2036,16 @@ int my_fdatasync(int fildes) {
     return fcntl(fildes, F_FULLFSYNC);
 }
 
+// Android uses 32-bit offset while Mac OS uses 64-bit one
+
+ssize_t my_pread(int fd, void *buf, size_t count, long offset) {
+    return pread(fd, buf, count, offset);
+}
+
+ssize_t my_pwrite(int fd, const void *buf, size_t count, long offset) {
+    return pwrite(fd, buf, count, offset);
+}
+
 struct android_rlimit
 {
     unsigned long int rlim_cur;
@@ -2526,8 +2536,8 @@ static struct _hook hooks[] = {
     {"close", close},
     {"read", read},
     {"write", write},
-    {"pread", pread},
-    {"pwrite", pwrite},
+    {"pread", my_pread},
+    {"pwrite", my_pwrite},
     // {"pread64", pread64},
     // {"pwrite64", pwrite64},
     {"pipe", pipe},
