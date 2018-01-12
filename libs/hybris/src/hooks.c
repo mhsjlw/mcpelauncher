@@ -1791,14 +1791,48 @@ static int bionic_convert_sockopt_ip_option(int opt)
     return -1;
 }
 
+static int bionic_convert_sockopt_ipv6_option(int opt)
+{
+    // if (opt == 1) return IPV6_ADDRFORM;
+    if (opt == 2) return IPV6_2292PKTINFO;
+    if (opt == 3) return IPV6_2292HOPOPTS;
+    if (opt == 4) return IPV6_2292DSTOPTS;
+    if (opt == 5) return IPV6_2292RTHDR;
+    if (opt == 6) return IPV6_2292PKTOPTIONS;
+    if (opt == 7) return IPV6_CHECKSUM;
+    if (opt == 8) return IPV6_2292HOPLIMIT;
+    // if (opt == 9) return IPV6_NEXTHOP;
+    // if (opt == 10) return IPV6_AUTHHDR;
+    if (opt == 16) return IPV6_UNICAST_HOPS;
+    if (opt == 17) return IPV6_MULTICAST_IF;
+    if (opt == 18) return IPV6_MULTICAST_HOPS;
+    if (opt == 19) return IPV6_MULTICAST_LOOP;
+    if (opt == 20) return IPV6_JOIN_GROUP;
+    if (opt == 21) return IPV6_LEAVE_GROUP;
+    // if (opt == 22) return IPV6_ROUTER_ALERT;
+    // if (opt == 23) return IPV6_MTU_DISCOVER;
+    // if (opt == 24) return IPV6_MTU;
+    // if (opt == 25) return IPV6_RECVERR;
+    if (opt == 26) return IPV6_V6ONLY;
+    ///if (opt == 27) return IPV6_JOIN_ANYCAST;
+    // if (opt == 28) return IPV6_LEAVE_ANYCAST;
+    if (opt == 34) return IPV6_IPSEC_POLICY;
+    // if (opt == 35) return IPV6_XFRM_POLICY;
+    // if (opt == 36) return IPV6_HDRINCL;
+    return -1;
+}
+
 static int bionic_convert_sockopt_option(int *level, int *optname)
 {
     if (*level == 1) { // SOL_SOCKET
         *level = SOL_SOCKET;
         *optname = bionic_convert_sockopt_socket_option(*optname);
     }
-    if (*level == IPPROTO_IP || *level == IPPROTO_IPV6) {
+    if (*level == IPPROTO_IP) {
         *optname = bionic_convert_sockopt_ip_option(*optname);
+    }
+    if (*level == IPPROTO_IPV6) {
+        *optname = bionic_convert_sockopt_ipv6_option(*optname);
     }
     if (*optname == -1) {
         printf("WARN: unknown sockopt\n");
@@ -2074,10 +2108,14 @@ int my_clock_gettime(clockid_t clk_id, struct timespec *tp) {
 #define	A_NI_NUMERICSERV	0x00000008
 #define	A_NI_DGRAM	0x00000010
 
-int my_getnameinfo (const struct sockaddr *__restrict sa,
+int my_getnameinfo (const struct android_sockaddr *__restrict sa,
                     socklen_t salen, char *__restrict host,
                     socklen_t hostlen, char *__restrict serv,
                     socklen_t servlen, int flags) {
+    socklen_t conv_salen = hybris_get_addr_size(sa);
+    struct sockaddr *conv_addr = alloca(conv_salen);
+    if (!hybris_convert_addr_to_native(sa, conv_addr))
+        return -1;
     int glibc_flags = 0;
     if (flags & A_NI_NOFQDN)
         glibc_flags |= A_NI_NOFQDN;
@@ -2089,7 +2127,7 @@ int my_getnameinfo (const struct sockaddr *__restrict sa,
         glibc_flags |= NI_NUMERICSERV;
     if (flags & A_NI_DGRAM)
         glibc_flags |= NI_DGRAM;
-    return getnameinfo(sa, salen, host, hostlen, serv, servlen, glibc_flags);
+    return getnameinfo(conv_addr, conv_salen, host, hostlen, serv, servlen, glibc_flags);
 }
 
 extern off_t __umoddi3(off_t a, off_t b);
