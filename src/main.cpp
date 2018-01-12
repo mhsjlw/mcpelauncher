@@ -232,6 +232,12 @@ static void minecraft_keyboard(GLFWwindow* window, unsigned int codepoint, int m
 }
 
 static void minecraft_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+        if (key == GLFW_KEY_BACKSPACE)
+            Keyboard::Keyboard_feedText("\x08", false, 0);
+        if (key == GLFW_KEY_ENTER)
+            Keyboard::Keyboard_feedText("\n", false, 0);
+    }
     if (key == GLFW_KEY_F11) {
          if (action == GLFW_PRESS)
              client->getPrimaryUserOptions()->setFullscreen(!client->getPrimaryUserOptions()->getFullscreen());
